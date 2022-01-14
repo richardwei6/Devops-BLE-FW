@@ -19,16 +19,12 @@ const static char DEVICE_NAME[] = "DuckyMultimeter";
 const size_t kEventQueueSize = 16;
 static events::EventQueue event_queue(kEventQueueSize * EVENTS_EVENT_SIZE);
 
-
-
 class ThermometerDemo : ble::Gap::EventHandler {
 public:
     ThermometerDemo(BLE &ble, events::EventQueue &event_queue) :
         _ble(ble),
         _event_queue(event_queue),
-        _sensor_event_id(0),
         _thermometer_uuid(GattService::UUID_HEALTH_THERMOMETER_SERVICE),
-        _current_temperature(39.6f),
         _thermometer_service(NULL),
         _adv_data_builder(_adv_buffer) { }
 
@@ -36,10 +32,6 @@ public:
         _ble.gap().setEventHandler(this);
 
         _ble.init(this, &ThermometerDemo::on_init_complete);
-
-        _event_queue.call_every(500, this, &ThermometerDemo::blink);
-
-        _event_queue.dispatch_forever();
     }
 
 private:
@@ -53,7 +45,7 @@ private:
         // print_mac_address();
 
         /* Setup primary service. */
-        _thermometer_service = new HealthThermometerService(_ble, _current_temperature, HealthThermometerService::LOCATION_EAR);
+        // _thermometer_service = new HealthThermometerService(_ble, _current_temperature, HealthThermometerService::LOCATION_EAR);
 
         start_advertising();
     }
@@ -103,38 +95,18 @@ private:
         }
     }
 
-    void update_sensor_value() {
-        _current_temperature = (_current_temperature + 0.1f > 43.0f) ? 39.6f : _current_temperature + 0.1f;
-        _thermometer_service->updateTemperature(_current_temperature);
-    }
-
-    void blink(void) {
-        LedB = !LedB;
-    }
-
 private:
     /* Event handler */
-
     virtual void onDisconnectionComplete(const ble::DisconnectionCompleteEvent&) {
-        _event_queue.cancel(_sensor_event_id);
         _ble.gap().startAdvertising(ble::LEGACY_ADVERTISING_HANDLE);
-    }
-
-    virtual void onConnectionComplete(const ble::ConnectionCompleteEvent &event) {
-        if (event.getStatus() == BLE_ERROR_NONE) {
-            _sensor_event_id = _event_queue.call_every(1000, this, &ThermometerDemo::update_sensor_value);
-        }
     }
 
 private:
     BLE &_ble;
     events::EventQueue &_event_queue;
 
-    int _sensor_event_id;
-
     UUID _thermometer_uuid;
 
-    float _current_temperature;
     HealthThermometerService *_thermometer_service;
 
     uint8_t _adv_buffer[ble::LEGACY_ADVERTISING_MAX_SIZE];
@@ -152,24 +124,24 @@ int main() {
 
   ThermometerDemo demo(ble, event_queue);
   demo.start();
+  HealthThermometerService ThermService(ble, 0, HealthThermometerService::LOCATION_EAR);
+
+  Timer timer;
+  timer.start();
+
+  LedR = 1;
+  LedG = 1;
+  LedB = 1;
 
   while (1) {
-    LedR = 1;
-    LedG = 1;
-    // LedB = 1;
-    wait_us(250 * 1000);
-    LedR = 0;
-    LedG = 1;
-    // LedB = 1;
-    wait_us(250 * 1000);
-    LedR = 1;
-    LedG = 0;
-    // LedB = 1;
-    wait_us(250 * 1000);
-    LedR = 1;
-    LedG = 1;
-    // LedB = 0;
-    wait_us(250 * 1000);
+    event_queue.dispatch_once();
+
+    if (timer.read_ms() > 250) {
+      timer.reset();
+      LedR = !LedR;
+      ThermService.updateTemperature(LedR == 1 ? 30 : 25);
+    }
+
     // StatusLed.pulse(RgbActivity::kRed);
     // StatusLed.pulse(RgbActivity::kGreen);
     // StatusLed.pulse(RgbActivity::kBlue);
