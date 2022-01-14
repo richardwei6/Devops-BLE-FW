@@ -1,0 +1,8 @@
+{
+    "target_overrides": {
+        "NRF52840_DK": {
+            "target.features_add": ["BLE"],
+            "platform.stdio-baud-rate": 115200
+        }
+    }
+}
