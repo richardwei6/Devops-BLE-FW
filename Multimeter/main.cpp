@@ -23,9 +23,6 @@ class ThermometerDemo : ble::Gap::EventHandler {
 public:
     ThermometerDemo(BLE &ble, events::EventQueue &event_queue) :
         _ble(ble),
-        _event_queue(event_queue),
-        _thermometer_uuid(GattService::UUID_HEALTH_THERMOMETER_SERVICE),
-        _thermometer_service(NULL),
         _adv_data_builder(_adv_buffer) { }
 
     void start() {
@@ -42,11 +39,6 @@ private:
             return;
         }
 
-        // print_mac_address();
-
-        /* Setup primary service. */
-        // _thermometer_service = new HealthThermometerService(_ble, _current_temperature, HealthThermometerService::LOCATION_EAR);
-
         start_advertising();
     }
 
@@ -59,7 +51,8 @@ private:
         );
 
         _adv_data_builder.setFlags();
-        _adv_data_builder.setLocalServiceList(mbed::make_Span(&_thermometer_uuid, 1));
+        UUID thermometerUuid = GattService::UUID_HEALTH_THERMOMETER_SERVICE;
+        _adv_data_builder.setLocalServiceList(mbed::make_Span(&thermometerUuid, 1));
         _adv_data_builder.setAppearance(ble::adv_data_appearance_t::THERMOMETER_EAR);
         _adv_data_builder.setName(DEVICE_NAME);
 
@@ -103,12 +96,7 @@ private:
 
 private:
     BLE &_ble;
-    events::EventQueue &_event_queue;
-
-    UUID _thermometer_uuid;
-
-    HealthThermometerService *_thermometer_service;
-
+    
     uint8_t _adv_buffer[ble::LEGACY_ADVERTISING_MAX_SIZE];
     ble::AdvertisingDataBuilder _adv_data_builder;
 };
