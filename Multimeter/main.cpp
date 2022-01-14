@@ -5,7 +5,9 @@
 
 // #include "RgbActivityLed.h"
 
-// Examples from https://github.com/platformio/platform-nordicnrf52/blob/master/examples/mbed-rtos-ble-thermometer/src/main.cpp
+// Example currently copy-pasted from https://github.com/platformio/platform-nordicnrf52/blob/master/examples/mbed-rtos-ble-thermometer/src/main.cpp
+// Note Apache license.
+// Will be removed once this is sufficiently refactored.
 
 
 Timer UsTimer;
