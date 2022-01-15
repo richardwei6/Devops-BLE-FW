@@ -25,16 +25,16 @@ DigitalOut LcdReset(P0_12);
 PwmOut Speaker(P0_7);
 
 DigitalOut MeasureSelect(P1_2);  // 0 = 1M/100 divider, 1: direct input
-DigitalOut GateControl(P1_1);  // power gate
+DigitalOut GateControl(P1_1, 1);  // power gate
 
 DigitalIn Switch0(P0_5);  // overlaid with power switch
 PwmOut DriverControl(P0_4);  // current driver setpoint
 DigitalOut DriverEnable(P0_31);  // 1 = enable driver
-DigitalIn Switch1(P1_4);  // up
-DigitalIn Switch2(P0_3);  // down
+DigitalIn Switch1(P1_4, PinMode::PullUp);  // up
+DigitalIn Switch2(P0_3, PinMode::PullUp);  // down
 
 DigitalOut InNegControl(P1_13, 1);  // 0 = GND, 1 = divider
-// RawSerial Uart(P1_15, NC, 115200);  // tx, rx
+BufferedSerial Uart(P1_15, NC, 115200);  // tx, rx
 
 
 // BLE comms
@@ -122,6 +122,14 @@ void schedule_ble_events(BLE::OnEventsToProcessCallbackContext *context) {
 
 
 int main() {
+  Speaker.period_us(25);
+  Speaker.write(0.5);
+
+  Uart.write("BLE Multimeter\r\n", 16);
+  printf("\r\n\r\n\r\n");
+  printf("BLE Multimeter");
+  printf("Built " __DATE__ " " __TIME__);
+
   uint16_t kGattServiceUuidGenericAccess = 0x1800;
   uint16_t kGattServiceUuidGenericAttribute = 0x1801;
 
@@ -137,11 +145,33 @@ int main() {
   Timer timer;
   timer.start();
 
+  Timer audioTimer;
+  audioTimer.start();
+
+  Timer audioTimer2;
+  audioTimer2.start();
+
   LedR = 1;
   LedG = 1;
   LedB = 1;
 
   while (1) {
+    if (!Switch0 || !Switch1 || !Switch2) {
+    // if (audioTimer2.elapsed_time().count() >= 100) {
+    //   float phase = audioTimer.elapsed_time().count() / 1000000.0 * 110.0 * 2 * 3.14159;
+    //   Speaker.write(0.5 + 0.5 * sin(phase));
+    //   audioTimer2.reset();
+    // }
+    if (audioTimer2.elapsed_time().count() >= 1000) {
+        if (audioTimer2.elapsed_time().count() % 9090 > 4545) {
+            Speaker.write(0.25);
+        } else {
+            Speaker.write(0.75);
+        }
+        
+    }
+    }
+
     event_queue.dispatch_once();
 
     if (timer.read_ms() > 250) {
