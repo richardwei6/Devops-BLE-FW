@@ -2,6 +2,7 @@
 #include <mbed.h>
 #include <ble/BLE.h>
 #include <ble/services/HealthThermometerService.h>
+#include <ble/services/DeviceInformationService.h>
 
 #include "StringService.h"
 
@@ -63,6 +64,7 @@ private:
         }
 
         start_advertising();
+        DeviceInformationService DeviceInfo(_ble, "Ducky", "Multimeter", "0001", "rv1", __DATE__ " " __TIME__, "NA");
     }
 
     void start_advertising() {
@@ -140,7 +142,8 @@ int main() {
   ThermometerDemo demo(ble, event_queue);
   demo.start();
   HealthThermometerService ThermService(ble, 0, HealthThermometerService::LOCATION_EAR);
-  StringService<64> FwRevService(ble, GattCharacteristic::UUID_FIRMWARE_REVISION_STRING_CHAR, GattService::UUID_DEVICE_INFORMATION_SERVICE);
+
+  StringService<64> FwRevService(ble, GattCharacteristic::UUID_FIRMWARE_REVISION_STRING_CHAR, kGattServiceUuidGenericAccess);
 
   Timer timer;
   timer.start();
@@ -182,7 +185,7 @@ int main() {
           LedB = !LedB;
         }
         ThermService.updateTemperature(LedR == 1 ? 30 : 25);
-        FwRevService.writeValue(LedB == 1 ? "Ducks🦆" : "Quacks");
+        // FwRevService.writeValue(LedB == 1 ? "Ducks🦆" : "Quacks");
       }
     }
 
