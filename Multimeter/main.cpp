@@ -3,6 +3,8 @@
 #include <ble/BLE.h>
 #include <ble/services/HealthThermometerService.h>
 
+#include "StringService.h"
+
 // #include "RgbActivityLed.h"
 
 // Example currently copy-pasted from https://github.com/platformio/platform-nordicnrf52/blob/master/examples/mbed-rtos-ble-thermometer/src/main.cpp
@@ -96,7 +98,7 @@ private:
 
 private:
     BLE &_ble;
-    
+
     uint8_t _adv_buffer[ble::LEGACY_ADVERTISING_MAX_SIZE];
     ble::AdvertisingDataBuilder _adv_data_builder;
 };
@@ -107,12 +109,17 @@ void schedule_ble_events(BLE::OnEventsToProcessCallbackContext *context) {
 
 
 int main() {
+  uint16_t kGattServiceUuidGenericAccess = 0x1800;
+  uint16_t kGattServiceUuidGenericAttribute = 0x1801;
+
+
   BLE &ble = BLE::Instance();
   ble.onEventsToProcess(schedule_ble_events);
 
   ThermometerDemo demo(ble, event_queue);
   demo.start();
   HealthThermometerService ThermService(ble, 0, HealthThermometerService::LOCATION_EAR);
+  StringService<64> FwRevService(ble, GattCharacteristic::UUID_FIRMWARE_REVISION_STRING_CHAR, GattService::UUID_DEVICE_INFORMATION_SERVICE);
 
   Timer timer;
   timer.start();
@@ -127,7 +134,11 @@ int main() {
     if (timer.read_ms() > 250) {
       timer.reset();
       LedR = !LedR;
+      if (LedR == 1) {
+        LedB = !LedB;
+      }
       ThermService.updateTemperature(LedR == 1 ? 30 : 25);
+      FwRevService.writeValue(LedB == 1 ? "Ducks🦆" : "Quacks");
     }
 
     // StatusLed.pulse(RgbActivity::kRed);
