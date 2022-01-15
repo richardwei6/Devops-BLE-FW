@@ -16,6 +16,27 @@ Timer UsTimer;
 DigitalOut LedR(P0_10), LedG(P1_10), LedB(P1_11);
 // RgbActivityDigitalOut StatusLed(UsTimer, LedR, LedG, LedB, false);
 
+SPI SharedSpi(P0_21, P1_3, P0_19);  // mosi, miso, sck
+DigitalOut AdcCs(P1_0);
+DigitalOut LcdCs(P0_22);
+DigitalOut LcdRs(P0_23);
+DigitalOut LcdReset(P0_12);
+
+PwmOut Speaker(P0_7);
+
+DigitalOut MeasureSelect(P1_2);  // 0 = 1M/100 divider, 1: direct input
+DigitalOut GateControl(P1_1);  // power gate
+
+DigitalIn Switch0(P0_5);  // overlaid with power switch
+PwmOut DriverControl(P0_4);  // current driver setpoint
+DigitalOut DriverEnable(P0_31);  // 1 = enable driver
+DigitalIn Switch1(P1_4);  // up
+DigitalIn Switch2(P0_3);  // down
+
+DigitalOut InNegControl(P1_13, 1);  // 0 = GND, 1 = divider
+// RawSerial Uart(P1_15, NC, 115200);  // tx, rx
+
+
 // BLE comms
 const static char DEVICE_NAME[] = "DuckyMultimeter";
 const size_t kEventQueueSize = 16;
@@ -53,9 +74,7 @@ private:
         );
 
         _adv_data_builder.setFlags();
-        UUID thermometerUuid = GattService::UUID_HEALTH_THERMOMETER_SERVICE;
-        _adv_data_builder.setLocalServiceList(mbed::make_Span(&thermometerUuid, 1));
-        _adv_data_builder.setAppearance(ble::adv_data_appearance_t::THERMOMETER_EAR);
+        _adv_data_builder.setAppearance(ble::adv_data_appearance_t::DIGITAL_PEN);
         _adv_data_builder.setName(DEVICE_NAME);
 
         /* Setup advertising */
@@ -88,12 +107,6 @@ private:
             // print_error(error, "_ble.gap().startAdvertising() failed");
             return;
         }
-    }
-
-private:
-    /* Event handler */
-    virtual void onDisconnectionComplete(const ble::DisconnectionCompleteEvent&) {
-        _ble.gap().startAdvertising(ble::LEGACY_ADVERTISING_HANDLE);
     }
 
 private:
@@ -134,11 +147,13 @@ int main() {
     if (timer.read_ms() > 250) {
       timer.reset();
       LedR = !LedR;
-      if (LedR == 1) {
-        LedB = !LedB;
+      if (!Switch0) {
+        if (LedR == 1) {
+          LedB = !LedB;
+        }
+        ThermService.updateTemperature(LedR == 1 ? 30 : 25);
+        FwRevService.writeValue(LedB == 1 ? "Ducks🦆" : "Quacks");
       }
-      ThermService.updateTemperature(LedR == 1 ? 30 : 25);
-      FwRevService.writeValue(LedB == 1 ? "Ducks🦆" : "Quacks");
     }
 
     // StatusLed.pulse(RgbActivity::kRed);
