@@ -64,7 +64,6 @@ private:
         }
 
         start_advertising();
-        DeviceInformationService DeviceInfo(_ble, "Ducky", "Multimeter", "0001", "rv1", __DATE__ " " __TIME__, "NA");
     }
 
     void start_advertising() {
@@ -142,7 +141,8 @@ int main() {
   ThermometerDemo demo(ble, event_queue);
   demo.start();
   HealthThermometerService ThermService(ble, 0, HealthThermometerService::LOCATION_EAR);
-
+  DeviceInformationService DeviceInfo(_ble, "Ducky", "Multimeter", "0001",
+                                      "rv1", __DATE__ " " __TIME__, "NA");
   StringService<64> FwRevService(ble, GattCharacteristic::UUID_FIRMWARE_REVISION_STRING_CHAR, kGattServiceUuidGenericAccess);
 
   Timer timer;
