@@ -4,9 +4,11 @@
 #include <ble/services/HealthThermometerService.h>
 #include <ble/services/DeviceInformationService.h>
 
-#include "StringService.h"
+#include "ButtonGesture.h"
+#include "RgbActivityLed.h"
+#include "Mcp3201.h"
 
-// #include "RgbActivityLed.h"
+#include "StringService.h"
 
 // Example currently copy-pasted from https://github.com/platformio/platform-nordicnrf52/blob/master/examples/mbed-rtos-ble-thermometer/src/main.cpp
 // Note Apache license.
@@ -15,7 +17,7 @@
 
 Timer UsTimer;
 DigitalOut LedR(P0_10), LedG(P1_10), LedB(P1_11);
-// RgbActivityDigitalOut StatusLed(UsTimer, LedR, LedG, LedB, false);
+RgbActivityDigitalOut StatusLed(UsTimer, LedR, LedG, LedB, false);
 
 SPI SharedSpi(P0_21, P1_3, P0_19);  // mosi, miso, sck
 DigitalOut AdcCs(P1_0);
@@ -29,10 +31,13 @@ DigitalOut MeasureSelect(P1_2);  // 0 = 1M/100 divider, 1: direct input
 DigitalOut GateControl(P1_1, 1);  // power gate
 
 DigitalIn Switch0(P0_5);  // overlaid with power switch
+ButtonGesture Switch0Gesture(Switch0);
 PwmOut DriverControl(P0_4);  // current driver setpoint
 DigitalOut DriverEnable(P0_31);  // 1 = enable driver
 DigitalIn Switch1(P1_4, PinMode::PullUp);  // up
+ButtonGesture Switch1Gesture(Switch1);
 DigitalIn Switch2(P0_3, PinMode::PullUp);  // down
+ButtonGesture Switch2Gesture(Switch2);
 
 DigitalOut InNegControl(P1_13, 1);  // 0 = GND, 1 = divider
 BufferedSerial Uart(P1_15, NC, 115200);  // tx, rx
