@@ -1,0 +1,2 @@
+struct can_s {
+};
