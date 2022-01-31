@@ -40,7 +40,12 @@ DigitalIn Switch2(P0_3, PinMode::PullUp);  // down
 ButtonGesture Switch2Gesture(Switch2);
 
 DigitalOut InNegControl(P1_13, 1);  // 0 = GND, 1 = divider
-BufferedSerial Uart(P1_15, NC, 115200);  // tx, rx
+BufferedSerial SwdUart(P1_15, NC, 115200);  // tx, rx
+
+
+FileHandle *mbed::mbed_override_console(int) {  // redirect printf to SWD UART pins
+    return &SwdUart;
+}
 
 
 // BLE comms
@@ -135,7 +140,6 @@ int main() {
   Speaker.period_us(25);
   Speaker.write(0.5);
 
-  Uart.write("BLE Multimeter\r\n", 16);
   printf("\r\n\r\n\r\n");
   printf("BLE Multimeter");
   printf("Built " __DATE__ " " __TIME__);
@@ -189,6 +193,7 @@ int main() {
     if (timer.read_ms() > 250) {
       timer.reset();
       LedR = !LedR;
+      printf("Ducks, %i\n", LedR);
       if (!Switch0) {
         if (LedR == 1) {
           LedB = !LedB;
