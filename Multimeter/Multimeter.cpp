@@ -14,16 +14,16 @@
 // Note Apache license.
 // Will be removed once this is sufficiently refactored.
 
-
 Timer UsTimer;
 DigitalOut LedR(P0_10), LedG(P1_10), LedB(P1_11);
 RgbActivityDigitalOut StatusLed(UsTimer, LedR, LedG, LedB, false);
 
 SPI SharedSpi(P0_21, P1_3, P0_19);  // mosi, miso, sck
-DigitalOut AdcCs(P1_0);
-DigitalOut LcdCs(P0_22);
+DigitalOut AdcCs(P1_0, 1);
+DigitalOut LcdCs(P0_22, 1);
 DigitalOut LcdRs(P0_23);
-DigitalOut LcdReset(P0_12);
+DigitalOut LcdReset(P0_12, 0);
+Mcp3201 Adc(SharedSpi, AdcCs);
 
 PwmOut Speaker(P0_7);
 
@@ -137,12 +137,15 @@ void schedule_ble_events(BLE::OnEventsToProcessCallbackContext *context) {
 
 
 int main() {
+  // Set SWO pin into GPIO mode, since it's used for the ADC CS
+  NRF_CLOCK->TRACECONFIG = 0;
+
   Speaker.period_us(25);
   Speaker.write(0.5);
 
   printf("\r\n\r\n\r\n");
-  printf("BLE Multimeter");
-  printf("Built " __DATE__ " " __TIME__);
+  printf("BLE Multimeter\n");
+  printf("Built " __DATE__ " " __TIME__ "\n");
 
   uint16_t kGattServiceUuidGenericAccess = 0x1800;
   uint16_t kGattServiceUuidGenericAttribute = 0x1801;
@@ -157,6 +160,8 @@ int main() {
   DeviceInformationService DeviceInfo(ble, "Ducky", "Multimeter", "0001",
                                       "rv1", __DATE__ " " __TIME__, "NA");
   StringService<64> FwRevService(ble, GattCharacteristic::UUID_FIRMWARE_REVISION_STRING_CHAR, kGattServiceUuidGenericAccess);
+
+  UsTimer.start();
 
   Timer timer;
   timer.start();
@@ -178,34 +183,55 @@ int main() {
     //   Speaker.write(0.5 + 0.5 * sin(phase));
     //   audioTimer2.reset();
     // }
-    if (audioTimer2.elapsed_time().count() >= 1000) {
-        if (audioTimer2.elapsed_time().count() % 9090 > 4545) {
-            Speaker.write(0.25);
-        } else {
-            Speaker.write(0.75);
-        }
-        
-    }
+    // if (audioTimer2.elapsed_time().count() >= 1000) {
+    //     if (audioTimer2.elapsed_time().count() % 9090 > 4545) {
+    //         Speaker.write(0.25);
+    //     } else {
+    //         Speaker.write(0.75);
+    //     }
+    // }
     }
 
     event_queue.dispatch_once();
 
-    if (timer.read_ms() > 250) {
-      timer.reset();
-      LedR = !LedR;
-      printf("Ducks, %i\n", LedR);
-      if (!Switch0) {
-        if (LedR == 1) {
-          LedB = !LedB;
-        }
+    switch (Switch0Gesture.update()) {
+      case ButtonGesture::Gesture::kClickRelease:  // test code
         ThermService.updateTemperature(LedR == 1 ? 30 : 25);
         // FwRevService.writeValue(LedB == 1 ? "Ducks🦆" : "Quacks");
-      }
+        break;
+      case ButtonGesture::Gesture::kHoldTransition:  // long press to shut off
+        GateControl = 0;
+        break;
+      default: break;
     }
 
-    // StatusLed.pulse(RgbActivity::kRed);
-    // StatusLed.pulse(RgbActivity::kGreen);
-    // StatusLed.pulse(RgbActivity::kBlue);
-    // StatusLed.update();
+    switch (Switch1Gesture.update()) {
+      default: break;
+    }
+
+    switch (Switch2Gesture.update()) {
+      case ButtonGesture::Gesture::kClickRelease:
+        MeasureSelect = !MeasureSelect;
+        break;
+      default: break;
+    }
+
+    if (timer.read_ms() > 500) {
+      timer.reset();
+
+      SharedSpi.frequency(100000);  // TODO refactor into Mcp* classes      
+      
+      uint16_t adcValue = Adc.read_raw_u12();
+      printf("MS=%i, ADC=%i\n", MeasureSelect.read(), adcValue);
+      
+      if (AdcCs.read() == 0) {
+        StatusLed.pulse(RgbActivity::kRed);
+      } else {
+        StatusLed.pulse(RgbActivity::kGreen);
+      }
+      
+    }
+
+    StatusLed.update();
   }
 }
