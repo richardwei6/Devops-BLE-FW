@@ -8,6 +8,8 @@
 #include "RgbActivityLed.h"
 #include "Mcp3201.h"
 
+#include "MultimeterAnalog.h"
+
 #include "StringService.h"
 
 // Example currently copy-pasted from https://github.com/platformio/platform-nordicnrf52/blob/master/examples/mbed-rtos-ble-thermometer/src/main.cpp
@@ -19,15 +21,13 @@ DigitalOut LedR(P0_10), LedG(P1_10), LedB(P1_11);
 RgbActivityDigitalOut StatusLed(UsTimer, LedR, LedG, LedB, false);
 
 SPI SharedSpi(P0_21, P1_3, P0_19);  // mosi, miso, sck
-DigitalOut AdcCs(P1_0, 1);
 DigitalOut LcdCs(P0_22, 1);
 DigitalOut LcdRs(P0_23);
 DigitalOut LcdReset(P0_12, 0);
-Mcp3201 Adc(SharedSpi, AdcCs);
 
 PwmOut Speaker(P0_7);
 
-DigitalOut MeasureSelect(P1_2);  // 0 = 1M/100 divider, 1: direct input
+
 DigitalOut GateControl(P1_1, 1);  // power gate
 
 DigitalIn Switch0(P0_5);  // overlaid with power switch
@@ -39,8 +39,13 @@ ButtonGesture Switch1Gesture(Switch1);
 DigitalIn Switch2(P0_3, PinMode::PullUp);  // down
 ButtonGesture Switch2Gesture(Switch2);
 
-DigitalOut InNegControl(P1_13, 1);  // 0 = GND, 1 = divider
 BufferedSerial SwdUart(P1_15, NC, 115200);  // tx, rx
+
+DigitalOut AdcCs(P1_0, 1);
+Mcp3201 Adc(SharedSpi, AdcCs);
+DigitalOut MeasureSelect(P1_2);  // 0 = 1M/100 divider, 1: direct input
+DigitalOut InNegControl(P1_13, 0);  // 0 = GND, 1 = divider
+MultimeterAnalog Meter(Adc, MeasureSelect, InNegControl);
 
 
 FileHandle *mbed::mbed_override_console(int) {  // redirect printf to SWD UART pins
@@ -218,11 +223,12 @@ int main() {
 
     if (timer.read_ms() > 500) {
       timer.reset();
-
-      SharedSpi.frequency(100000);  // TODO refactor into Mcp* classes      
       
-      uint16_t adcValue = Adc.read_raw_u12();
-      printf("MS=%i, ADC=%i\n", MeasureSelect.read(), adcValue);
+      uint16_t adcValue;
+      int32_t voltage = Meter.readVoltageMv(&adcValue);
+      printf("MS=%i, NC=%i, ADC=%i, V=%ld\n", 
+          MeasureSelect.read(), InNegControl.read(),
+          adcValue, voltage);
       
       if (AdcCs.read() == 0) {
         StatusLed.pulse(RgbActivity::kRed);
