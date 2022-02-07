@@ -4,6 +4,8 @@
 #include <ble/services/HealthThermometerService.h>
 #include <ble/services/DeviceInformationService.h>
 
+#include "USBSerial.h"
+
 #include "ButtonGesture.h"
 #include "RgbActivityLed.h"
 #include "Mcp3201.h"
@@ -42,9 +44,8 @@ BufferedSerial SwdUart(P1_15, NC, 115200);  // tx, rx
 DigitalOut AdcCs(P1_0, 1);
 Mcp3201 Adc(SharedSpi, AdcCs);
 DigitalOut MeasureSelect(P1_2);  // 0 = 1M/100 divider, 1: direct input
-DigitalOut InNegControl(P1_13, 0);  // 0 = GND, 1 = divider
+DigitalOut InNegControl(P1_13, 1);  // 0 = GND, 1 = divider
 MultimeterMeasurer Meter(Adc, MeasureSelect, InNegControl);
-
 
 DigitalOut DriverEnable(P0_31);  // 1 = enable driver
 PwmOut DriverControl(P0_4);  // current driver setpoint
@@ -53,6 +54,9 @@ MultimeterDriver Driver(DriverEnable, DriverControl);
 FileHandle *mbed::mbed_override_console(int) {  // redirect printf to SWD UART pins
     return &SwdUart;
 }
+
+
+USBSerial UsbSerial(false, 0x1209, 0x0001, 0x0001);
 
 
 // BLE comms
@@ -183,7 +187,7 @@ int main() {
   LedG = 1;
   LedB = 1;
 
-  Driver.enable();
+  // Driver.enable();
   Driver.setCurrent(2000);
 
   while (1) {
@@ -203,6 +207,15 @@ int main() {
     }
 
     event_queue.dispatch_once();
+
+    if (UsbSerial.connected()) {
+      StatusLed.setIdle(RgbActivity::kGreen);
+    } else if (UsbSerial.configured()) {
+      StatusLed.setIdle(RgbActivity::kYellow);
+    } else {
+      UsbSerial.connect();
+      StatusLed.setIdle(RgbActivity::kOff);
+    }
 
     switch (Switch0Gesture.update()) {
       case ButtonGesture::Gesture::kClickRelease:  // test code
@@ -234,13 +247,14 @@ int main() {
       printf("MS=%i, NC=%i, ADC=%i, V=%ld\n", 
           MeasureSelect.read(), InNegControl.read(),
           adcValue, voltage);
-      
-      if (AdcCs.read() == 0) {
-        StatusLed.pulse(RgbActivity::kRed);
-      } else {
-        StatusLed.pulse(RgbActivity::kGreen);
+
+      if (UsbSerial.connected()) {
+        UsbSerial.printf("MS=%i, NC=%i, ADC=%i, V=%ld\r\n", 
+            MeasureSelect.read(), InNegControl.read(),
+            adcValue, voltage);
       }
-      
+
+      StatusLed.pulse(RgbActivity::kCyan);
     }
 
     StatusLed.update();

@@ -49,8 +49,4 @@ features/frameworks/unity
 
 features/frameworks/utest
 
-drivers/usb/source
-hal/usb/source
-hal/usb/TARGET_Templates
-
 connectivity/drivers/wifi
