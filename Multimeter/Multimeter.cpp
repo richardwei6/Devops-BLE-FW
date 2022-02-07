@@ -8,7 +8,8 @@
 #include "RgbActivityLed.h"
 #include "Mcp3201.h"
 
-#include "MultimeterAnalog.h"
+#include "MultimeterMeasurer.h"
+#include "MultimeterDriver.h"
 
 #include "StringService.h"
 
@@ -27,13 +28,10 @@ DigitalOut LcdReset(P0_12, 0);
 
 PwmOut Speaker(P0_7);
 
-
 DigitalOut GateControl(P1_1, 1);  // power gate
 
 DigitalIn Switch0(P0_5);  // overlaid with power switch
 ButtonGesture Switch0Gesture(Switch0);
-PwmOut DriverControl(P0_4);  // current driver setpoint
-DigitalOut DriverEnable(P0_31);  // 1 = enable driver
 DigitalIn Switch1(P1_4, PinMode::PullUp);  // up
 ButtonGesture Switch1Gesture(Switch1);
 DigitalIn Switch2(P0_3, PinMode::PullUp);  // down
@@ -45,8 +43,12 @@ DigitalOut AdcCs(P1_0, 1);
 Mcp3201 Adc(SharedSpi, AdcCs);
 DigitalOut MeasureSelect(P1_2);  // 0 = 1M/100 divider, 1: direct input
 DigitalOut InNegControl(P1_13, 0);  // 0 = GND, 1 = divider
-MultimeterAnalog Meter(Adc, MeasureSelect, InNegControl);
+MultimeterMeasurer Meter(Adc, MeasureSelect, InNegControl);
 
+
+DigitalOut DriverEnable(P0_31);  // 1 = enable driver
+PwmOut DriverControl(P0_4);  // current driver setpoint
+MultimeterDriver Driver(DriverEnable, DriverControl);
 
 FileHandle *mbed::mbed_override_console(int) {  // redirect printf to SWD UART pins
     return &SwdUart;
@@ -180,6 +182,9 @@ int main() {
   LedR = 1;
   LedG = 1;
   LedB = 1;
+
+  Driver.enable();
+  Driver.setCurrent(2000);
 
   while (1) {
     if (!Switch0 || !Switch1 || !Switch2) {

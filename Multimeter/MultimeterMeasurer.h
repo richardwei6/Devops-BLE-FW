@@ -1,16 +1,21 @@
-#ifndef __MULTIMETER_ANALOG_H__
-#define __MULTIMETER_ANALOG_H__
+#ifndef __MULTIMETER_MEASURER_H__
+#define __MULTIMETER_MEASURER_H__
 #include <mbed.h>
 #include "Mcp3201.h"
 
-class MultimeterAnalog {
+
+/**
+ * Volts measurement stage for the multimeter.
+ * Optional auto-ranging.
+ */
+class MultimeterMeasurer {
 public:
   enum Range {
     kRange1,
     kRange100,
   };
 
-  MultimeterAnalog(Mcp3201& adc, DigitalOut& measureSelect, DigitalOut& referenceSelect) :
+  MultimeterMeasurer(Mcp3201& adc, DigitalOut& measureSelect, DigitalOut& referenceSelect) :
       adc_(adc), measureSelect_(measureSelect), referenceSelect_(referenceSelect) {
   }
 
@@ -24,7 +29,6 @@ public:
 
   // 
   int32_t readVoltageMv(uint16_t* rawAdcOut = NULL) {
-    adc_.spi_frequency(100000);
     uint16_t adcValue = adc_.read_raw_u12();
     if (rawAdcOut != NULL) {
       *rawAdcOut = adcValue;
@@ -51,8 +55,8 @@ protected:
   static const int32_t kCalibrationDenominator = 1000;
   int32_t adcDivIntercept_ = kAdcCounts / 2;
 
-  int32_t adcSlope1_ = (int32_t)((double)kCalibrationDenominator * kAdcCounts / kVref);
-  int32_t adcSlope100_ = (int32_t)((double)kCalibrationDenominator * kAdcCounts * (10.0/1010.0) / kVref);
+  int32_t adcSlope1_ = (float)kCalibrationDenominator * kAdcCounts / kVref;
+  int32_t adcSlope100_ = (float)kCalibrationDenominator * kAdcCounts * (10.0/1010.0) / kVref;
 };
 
 #endif
