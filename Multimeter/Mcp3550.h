@@ -7,8 +7,8 @@
 // MCP3550/1/3 22-bit SPI ADC
 class Mcp3550 {
 public:
-  Mcp3550(SPI& spi, DigitalOut& cs, int frequency = 1000000) : 
-      spi_(spi), cs_(cs), frequency_(frequency) {
+  Mcp3550(SPI& spi, DigitalOut& cs, DigitalIn& so, int frequency = 1000000) : 
+      spi_(spi), cs_(cs), so_(so), frequency_(frequency) {
 
   }
 
@@ -19,15 +19,16 @@ public:
     spi_.frequency(frequency_);
 
     cs_ = 0;
-    // first two clocks are for sampling, then one null bit, then data
-    // and last bit (in a 16 bit transfer) is unused
-    uint8_t byte0 = spi_.write(0);
 
-    if (byte0 == 0xff) {  // data was not ready
+    wait_ns(50);  // t_RDY, CS low to /RDY
+    if (so_.read() == 1) {  // data was not ready
+      wait_us(8);  // t_CSL, minimum CS low time
       cs_ = 1;
       return false;
     }
+    wait_ns(20);  // t_SU, /RDY to first clock
 
+    uint8_t byte0 = spi_.write(0);
     uint8_t byte1 = spi_.write(0);
     uint8_t byte2 = spi_.write(0);
     cs_ = 1;
@@ -50,6 +51,7 @@ public:
 protected:
   SPI& spi_;
   DigitalOut& cs_;
+  DigitalIn& so_;
   int frequency_;
 };
 

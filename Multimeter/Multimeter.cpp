@@ -9,6 +9,7 @@
 #include "ButtonGesture.h"
 #include "RgbActivityLed.h"
 #include "Mcp3201.h"
+#include "StatisticalCounter.h"
 
 #include "MultimeterMeasurer.h"
 #include "MultimeterDriver.h"
@@ -44,7 +45,8 @@ BufferedSerial SwdUart(P1_15, NC, 115200);  // tx, rx
 
 // DigitalOut AdcCs(P1_0, 1);  // SCK and CS swapped for MCP3550
 DigitalOut AdcCs(P0_19, 1);
-Mcp3550 Adc(SharedSpi, AdcCs);
+DigitalIn AdcSo(P1_3, PinMode::PullUp);
+Mcp3550 Adc(SharedSpi, AdcCs, AdcSo);
 DigitalOut MeasureSelect(P1_2);  // 0 = 1M/100 divider, 1: direct input
 DigitalOut InNegControl(P1_13, 1);  // 0 = GND, 1 = divider
 MultimeterMeasurer Meter(Adc, MeasureSelect, InNegControl);
@@ -149,6 +151,11 @@ void schedule_ble_events(BLE::OnEventsToProcessCallbackContext *context) {
 }
 
 
+// Application-specific temporary
+StatisticalCounter<uint32_t, uint64_t> AdcStats;
+StatisticalCounter<int32_t, int64_t> VoltageStats;
+
+
 int main() {
   // Set SWO pin into GPIO mode, since it's used for the ADC CS
   NRF_CLOCK->TRACECONFIG = 0;
@@ -243,21 +250,29 @@ int main() {
       
     uint32_t adcValue;
     int32_t voltage;
-    bool newData = Meter.readVoltageMv(&voltage, &adcValue);
+    if (Meter.readVoltageMv(&voltage, &adcValue)) {
+      StatusLed.pulse(RgbActivity::kCyan);
+      AdcStats.addSample(adcValue);
+      VoltageStats.addSample(voltage);
+      printf("ADC=%li V=%li\n", 
+        adcValue, voltage);
+    }
 
-    if (newData && timer.read_ms() > 500) {
+    if (timer.read_ms() >= 1000) {
       timer.reset();
-      printf("MS=%i, NC=%i, ADC=%i, V=%ld\n", 
+      auto adcStats = AdcStats.read();
+      auto voltageStats = VoltageStats.read();
+      AdcStats.reset();
+      VoltageStats.reset();
+
+      printf("MS=%i, NC=%i, ADC(%lu) = %lu - %lu - %lu (%lu)    V(%lu) = %li - %li - %li (%li)\n", 
           MeasureSelect.read(), InNegControl.read(),
-          adcValue, voltage);
+          adcStats.numSamples, adcStats.min, adcStats.avg, adcStats.max, adcStats.stdev,
+          voltageStats.numSamples, voltageStats.min, voltageStats.avg, voltageStats.max, voltageStats.stdev);
 
       if (UsbSerial.connected()) {
-        UsbSerial.printf("MS=%i, NC=%i, ADC=%li, V=%ld\r\n", 
-            MeasureSelect.read(), InNegControl.read(),
-            adcValue, voltage);
+        UsbSerial.printf("\n");
       }
-
-      StatusLed.pulse(RgbActivity::kCyan);
     }
 
     StatusLed.update();
