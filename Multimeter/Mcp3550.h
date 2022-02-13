@@ -21,9 +21,12 @@ public:
     cs_ = 0;
 
     wait_ns(50);  // t_RDY, CS low to /RDY
+    wait_us(1);  // fudge factor to avoid spurious ready - wait_ns also doesn't seem to work
+
     if (so_.read() == 1) {  // data was not ready
       wait_us(8);  // t_CSL, minimum CS low time
       cs_ = 1;
+      wait_us(10);  // t_CSHSD, minimum CS high to shutdown
       return false;
     }
     wait_ns(20);  // t_SU, /RDY to first clock
@@ -32,6 +35,7 @@ public:
     uint8_t byte1 = spi_.write(0);
     uint8_t byte2 = spi_.write(0);
     cs_ = 1;
+    wait_us(10);  // t_CSHSD, minimum CS high to shutdown
 
     *outValue = (((uint32_t)(byte0 & 0x3f) << 16) |
                  ((uint32_t)byte1 << 8) |

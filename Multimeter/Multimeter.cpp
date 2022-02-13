@@ -154,6 +154,7 @@ void schedule_ble_events(BLE::OnEventsToProcessCallbackContext *context) {
 // Application-specific temporary
 StatisticalCounter<uint32_t, uint64_t> AdcStats;
 StatisticalCounter<int32_t, int64_t> VoltageStats;
+Timer ConvTimer;
 
 
 int main() {
@@ -191,6 +192,8 @@ int main() {
 
   Timer audioTimer2;
   audioTimer2.start();
+
+  ConvTimer.start();
 
   LedR = 1;
   LedG = 1;
@@ -254,8 +257,9 @@ int main() {
       StatusLed.pulse(RgbActivity::kCyan);
       AdcStats.addSample(adcValue);
       VoltageStats.addSample(voltage);
-      printf("ADC=%li V=%li\n", 
-        adcValue, voltage);
+      // printf("% 3lims    ADC=%li lsb    V=%li mV\n", 
+      //   ConvTimer.read_ms(), adcValue, voltage);
+      // ConvTimer.reset();
     }
 
     if (timer.read_ms() >= 1000) {
@@ -265,7 +269,7 @@ int main() {
       AdcStats.reset();
       VoltageStats.reset();
 
-      printf("MS=%i, NC=%i, ADC(%lu) = %lu - %lu - %lu (%lu)    V(%lu) = %li - %li - %li (%li)\n", 
+      printf("MS=%i, NC=%i, ADC(%u) = %lu - %lu - %lu (%lu)    V(%u) = %li - %li - %li (%li)\n", 
           MeasureSelect.read(), InNegControl.read(),
           adcStats.numSamples, adcStats.min, adcStats.avg, adcStats.max, adcStats.stdev,
           voltageStats.numSamples, voltageStats.min, voltageStats.avg, voltageStats.max, voltageStats.stdev);
