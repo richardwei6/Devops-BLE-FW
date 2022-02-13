@@ -1,7 +1,7 @@
 #ifndef __MULTIMETER_MEASURER_H__
 #define __MULTIMETER_MEASURER_H__
 #include <mbed.h>
-#include "Mcp3201.h"
+#include "Mcp3550.h"
 
 
 /**
@@ -15,7 +15,7 @@ public:
     kRange100,
   };
 
-  MultimeterMeasurer(Mcp3201& adc, DigitalOut& measureSelect, DigitalOut& referenceSelect) :
+  MultimeterMeasurer(Mcp3550& adc, DigitalOut& measureSelect, DigitalOut& referenceSelect) :
       adc_(adc), measureSelect_(measureSelect), referenceSelect_(referenceSelect) {
   }
 
@@ -28,8 +28,12 @@ public:
   }
 
   // 
-  int32_t readVoltageMv(uint16_t* rawAdcOut = NULL) {
-    uint16_t adcValue = adc_.read_raw_u12();
+  bool readVoltageMv(int32_t* voltageOut = NULL, uint32_t* rawAdcOut = NULL) {
+    uint32_t adcValue;
+    if (!adc_.read_raw_u22(&adcValue)) {
+      return false;
+    }
+
     if (rawAdcOut != NULL) {
       *rawAdcOut = adcValue;
     }
@@ -39,19 +43,20 @@ public:
       signedAdcValue = signedAdcValue - adcDivIntercept_;
     }
     if (measureSelect_.read() == 0) {  // 1:100 divider
-      return signedAdcValue * 1000 * kCalibrationDenominator / adcSlope100_;
+      *voltageOut = signedAdcValue * 1000 * kCalibrationDenominator / adcSlope100_;
     } else {  // direct input
-      return signedAdcValue * 1000 * kCalibrationDenominator / adcSlope1_;
+      *voltageOut = signedAdcValue * 1000 * kCalibrationDenominator / adcSlope1_;
     }
+    return true;
   }
 
 protected:
-  Mcp3201 adc_;
+  Mcp3550 adc_;
   DigitalOut measureSelect_;  // 0 = 1M/10k divider, 1: direct input
   DigitalOut referenceSelect_;  // 0 = GND, 1 = 1/2 divider (allows measuring negative voltages, 'virtual ground')
 
   static constexpr float kVref = 3.3;
-  static const int32_t kAdcCounts = 4095;
+  static const int32_t kAdcCounts = 2097152;  // 2^21, since we don't use the negative voltage range
   static const int32_t kCalibrationDenominator = 1000;
   int32_t adcDivIntercept_ = kAdcCounts / 2;
 

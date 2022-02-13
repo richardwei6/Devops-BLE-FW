@@ -23,7 +23,8 @@ Timer UsTimer;
 DigitalOut LedR(P0_10), LedG(P1_10), LedB(P1_11);
 RgbActivityDigitalOut StatusLed(UsTimer, LedR, LedG, LedB, false);
 
-SPI SharedSpi(P0_21, P1_3, P0_19);  // mosi, miso, sck
+// SPI SharedSpi(P0_21, P1_3, P0_19);  // mosi, miso, sck
+SPI SharedSpi(P0_21, P1_3, P1_0);  // mosi, miso, sck - SCK and CS swapped for MCP3550
 DigitalOut LcdCs(P0_22, 1);
 DigitalOut LcdRs(P0_23);
 DigitalOut LcdReset(P0_12, 0);
@@ -41,8 +42,9 @@ ButtonGesture Switch2Gesture(Switch2);
 
 BufferedSerial SwdUart(P1_15, NC, 115200);  // tx, rx
 
-DigitalOut AdcCs(P1_0, 1);
-Mcp3201 Adc(SharedSpi, AdcCs);
+// DigitalOut AdcCs(P1_0, 1);  // SCK and CS swapped for MCP3550
+DigitalOut AdcCs(P0_19, 1);
+Mcp3550 Adc(SharedSpi, AdcCs);
 DigitalOut MeasureSelect(P1_2);  // 0 = 1M/100 divider, 1: direct input
 DigitalOut InNegControl(P1_13, 1);  // 0 = GND, 1 = divider
 MultimeterMeasurer Meter(Adc, MeasureSelect, InNegControl);
@@ -238,18 +240,19 @@ int main() {
         break;
       default: break;
     }
-
-    if (timer.read_ms() > 500) {
-      timer.reset();
       
-      uint16_t adcValue;
-      int32_t voltage = Meter.readVoltageMv(&adcValue);
+    uint32_t adcValue;
+    int32_t voltage;
+    bool newData = Meter.readVoltageMv(&voltage, &adcValue);
+
+    if (newData && timer.read_ms() > 500) {
+      timer.reset();
       printf("MS=%i, NC=%i, ADC=%i, V=%ld\n", 
           MeasureSelect.read(), InNegControl.read(),
           adcValue, voltage);
 
       if (UsbSerial.connected()) {
-        UsbSerial.printf("MS=%i, NC=%i, ADC=%i, V=%ld\r\n", 
+        UsbSerial.printf("MS=%i, NC=%i, ADC=%li, V=%ld\r\n", 
             MeasureSelect.read(), InNegControl.read(),
             adcValue, voltage);
       }
