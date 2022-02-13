@@ -262,7 +262,7 @@ int main() {
       // ConvTimer.reset();
     }
 
-    if (timer.read_ms() >= 1000) {
+    if (timer.read_ms() >= 2500) {
       timer.reset();
       auto adcStats = AdcStats.read();
       auto voltageStats = VoltageStats.read();
@@ -271,8 +271,10 @@ int main() {
 
       printf("MS=%i, NC=%i, ADC(%u) = %lu - %lu - %lu (%lu)    V(%u) = %li - %li - %li (%li)\n", 
           MeasureSelect.read(), InNegControl.read(),
-          adcStats.numSamples, adcStats.min, adcStats.avg, adcStats.max, adcStats.stdev,
-          voltageStats.numSamples, voltageStats.min, voltageStats.avg, voltageStats.max, voltageStats.stdev);
+          adcStats.numSamples, adcStats.min, adcStats.avg, adcStats.max, 
+          adcStats.max-adcStats.min,
+          voltageStats.numSamples, voltageStats.min, voltageStats.avg, voltageStats.max, 
+          voltageStats.max-voltageStats.min);
 
       if (UsbSerial.connected()) {
         UsbSerial.printf("\n");
