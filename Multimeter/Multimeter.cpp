@@ -106,9 +106,8 @@ private:
 
         const UUID thermometerService = GattService::UUID_HEALTH_THERMOMETER_SERVICE;
         const UUID deviceInformationService = GattService::UUID_DEVICE_INFORMATION_SERVICE;
-        const UUID uartService = kServiceUuid;
-        // const UUID services[] = {thermometerService, deviceInformationService, uartService};
-        const UUID services[] = {uartService};
+        const UUID uartService = NusService::kServiceUuid;
+        const UUID services[] = {thermometerService, deviceInformationService, uartService};
 
         _adv_data_builder.setFlags();
         _adv_data_builder.setLocalServiceList(mbed::make_Span(services, 3));

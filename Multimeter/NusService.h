@@ -5,32 +5,13 @@
 #include "ble/Gap.h"
 #include "ble/GattServer.h"
 
-  // from https://infocenter.nordicsemi.com/index.jsp?topic=%2Fcom.nordic.infocenter.sdk5.v14.0.0%2Fble_sdk_app_nus_eval.html
-  const uint8_t kServiceUuid[UUID::LENGTH_OF_LONG_UUID] = {
-    0x6E, 0x40, 0x00, 0x01,
-    0xB5, 0xA3,
-    0xF3, 0x93,
-    0xE0, 0xA9,
-    0xE5, 0x0E, 0x24, 0xDC, 0xCA, 0x9E
-  };
-  const uint8_t kRxCharacteristicUuid[UUID::LENGTH_OF_LONG_UUID] = {
-    0x6E, 0x40, 0x00, 0x02,
-    0xB5, 0xA3,
-    0xF3, 0x93,
-    0xE0, 0xA9,
-    0xE5, 0x0E, 0x24, 0xDC, 0xCA, 0x9E
-  };
-  const uint8_t kTxCharacteristicUuid[UUID::LENGTH_OF_LONG_UUID] = {
-    0x6E, 0x40, 0x00, 0x03,
-    0xB5, 0xA3,
-    0xF3, 0x93,
-    0xE0, 0xA9,
-    0xE5, 0x0E, 0x24, 0xDC, 0xCA, 0x9E
-  };
 
 /** Nordic UART Service (NUS), a non-standard BLE service that presents a UART bridge.
  * Based on https://github.com/ARMmbed/ble/blob/master/ble/services/UARTService.h,
  * which is no longer included in recent mbed releases.
+ * 
+ * For whatever reason, this doesn't seem to work well with nRF Toolbox, but does work with
+ * Serial Bluetooth Terminal
  */
 class NusService {
 public:
@@ -58,6 +39,30 @@ public:
   size_t write(char* data) {
     return write((const uint8_t*)data, strlen(data));
   }
+
+
+  // from https://infocenter.nordicsemi.com/index.jsp?topic=%2Fcom.nordic.infocenter.sdk5.v14.0.0%2Fble_sdk_app_nus_eval.html
+  static constexpr uint8_t kServiceUuid[UUID::LENGTH_OF_LONG_UUID] = {
+    0x6E, 0x40, 0x00, 0x01,
+    0xB5, 0xA3,
+    0xF3, 0x93,
+    0xE0, 0xA9,
+    0xE5, 0x0E, 0x24, 0xDC, 0xCA, 0x9E
+  };
+  static constexpr uint8_t kRxCharacteristicUuid[UUID::LENGTH_OF_LONG_UUID] = {
+    0x6E, 0x40, 0x00, 0x02,
+    0xB5, 0xA3,
+    0xF3, 0x93,
+    0xE0, 0xA9,
+    0xE5, 0x0E, 0x24, 0xDC, 0xCA, 0x9E
+  };
+  static constexpr uint8_t kTxCharacteristicUuid[UUID::LENGTH_OF_LONG_UUID] = {
+    0x6E, 0x40, 0x00, 0x03,
+    0xB5, 0xA3,
+    0xF3, 0x93,
+    0xE0, 0xA9,
+    0xE5, 0x0E, 0x24, 0xDC, 0xCA, 0x9E
+  };
 
 protected:
   BLE& ble_;
