@@ -15,6 +15,11 @@
 #include "MultimeterDriver.h"
 
 #include "StringService.h"
+#include "NusService.h"
+
+// for itoa
+#include <stdio.h>
+#include <stdlib.h>
 
 // Example currently copy-pasted from https://github.com/platformio/platform-nordicnrf52/blob/master/examples/mbed-rtos-ble-thermometer/src/main.cpp
 // Note Apache license.
@@ -99,7 +104,14 @@ private:
             ble::adv_interval_t(ble::millisecond_t(1000))
         );
 
+        const UUID thermometerService = GattService::UUID_HEALTH_THERMOMETER_SERVICE;
+        const UUID deviceInformationService = GattService::UUID_DEVICE_INFORMATION_SERVICE;
+        const UUID uartService = kServiceUuid;
+        // const UUID services[] = {thermometerService, deviceInformationService, uartService};
+        const UUID services[] = {uartService};
+
         _adv_data_builder.setFlags();
+        _adv_data_builder.setLocalServiceList(mbed::make_Span(services, 3));
         _adv_data_builder.setAppearance(ble::adv_data_appearance_t::DIGITAL_PEN);
         _adv_data_builder.setName(DEVICE_NAME);
 
@@ -177,10 +189,11 @@ int main() {
 
   ThermometerDemo demo(ble, event_queue);
   demo.start();
-  HealthThermometerService ThermService(ble, 0, HealthThermometerService::LOCATION_EAR);
-  DeviceInformationService DeviceInfo(ble, "Ducky", "Multimeter", "0001",
-                                      "rv1", __DATE__ " " __TIME__, "NA");
-  StringService<64> FwRevService(ble, GattCharacteristic::UUID_FIRMWARE_REVISION_STRING_CHAR, kGattServiceUuidGenericAccess);
+  // HealthThermometerService ThermService(ble, 0, HealthThermometerService::LOCATION_EAR);
+  // DeviceInformationService DeviceInfo(ble, "Ducky", "Multimeter", "0001",
+  //                                     "rv1", __DATE__ " " __TIME__, "NA");
+  // StringService<64> TestString(ble, GattCharacteristic::UUID_FIRMWARE_REVISION_STRING_CHAR, kGattServiceUuidGenericAccess);
+  NusService ConsoleService(ble);  
 
   UsTimer.start();
 
@@ -231,8 +244,7 @@ int main() {
 
     switch (Switch0Gesture.update()) {
       case ButtonGesture::Gesture::kClickRelease:  // test code
-        ThermService.updateTemperature(LedR == 1 ? 30 : 25);
-        // FwRevService.writeValue(LedB == 1 ? "Ducks🦆" : "Quacks");
+        // ThermService.updateTemperature(LedR == 1 ? 30 : 25);
         break;
       case ButtonGesture::Gesture::kHoldTransition:  // long press to shut off
         GateControl = 0;
@@ -262,7 +274,7 @@ int main() {
       // ConvTimer.reset();
     }
 
-    if (timer.read_ms() >= 2500) {
+    if (timer.read_ms() >= 1000) {
       timer.reset();
       auto adcStats = AdcStats.read();
       auto voltageStats = VoltageStats.read();
@@ -279,6 +291,10 @@ int main() {
       if (UsbSerial.connected()) {
         UsbSerial.printf("\n");
       }
+      char voltsStr[128];
+      itoa(voltageStats.avg, voltsStr, 10);
+      strcat(voltsStr, " mV\n");
+      ConsoleService.write(voltsStr);
     }
 
     StatusLed.update();
