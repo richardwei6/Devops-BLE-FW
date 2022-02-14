@@ -16,6 +16,7 @@
 
 #include "StringService.h"
 #include "NusService.h"
+#include "MultimeterService.h"
 
 // for itoa
 #include <stdio.h>
@@ -104,13 +105,12 @@ private:
             ble::adv_interval_t(ble::millisecond_t(1000))
         );
 
-        const UUID thermometerService = GattService::UUID_HEALTH_THERMOMETER_SERVICE;
         const UUID deviceInformationService = GattService::UUID_DEVICE_INFORMATION_SERVICE;
         const UUID uartService = NusService::kServiceUuid;
-        const UUID services[] = {thermometerService, deviceInformationService, uartService};
+        const UUID services[] = {deviceInformationService, uartService};
 
         _adv_data_builder.setFlags();
-        _adv_data_builder.setLocalServiceList(mbed::make_Span(services, 3));
+        // _adv_data_builder.setLocalServiceList(mbed::make_Span(services, 2));  // somehow breaks names
         _adv_data_builder.setAppearance(ble::adv_data_appearance_t::DIGITAL_PEN);
         _adv_data_builder.setName(DEVICE_NAME);
 
@@ -179,20 +179,16 @@ int main() {
   printf("BLE Multimeter\n");
   printf("Built " __DATE__ " " __TIME__ "\n");
 
-  uint16_t kGattServiceUuidGenericAccess = 0x1800;
-  uint16_t kGattServiceUuidGenericAttribute = 0x1801;
-
-
   BLE &ble = BLE::Instance();
   ble.onEventsToProcess(schedule_ble_events);
 
   ThermometerDemo demo(ble, event_queue);
   demo.start();
-  // HealthThermometerService ThermService(ble, 0, HealthThermometerService::LOCATION_EAR);
-  // DeviceInformationService DeviceInfo(ble, "Ducky", "Multimeter", "0001",
-  //                                     "rv1", __DATE__ " " __TIME__, "NA");
-  // StringService<64> TestString(ble, GattCharacteristic::UUID_FIRMWARE_REVISION_STRING_CHAR, kGattServiceUuidGenericAccess);
-  NusService ConsoleService(ble);  
+
+  VoltmeterService bleVoltmeter(ble, 0x183B);
+  DeviceInformationService bleDeviceInfo(ble, "Ducky", "Multimeter", "0001",
+                                      "rv1", __DATE__ " " __TIME__, "NA");
+  NusService bleConsole(ble);  
 
   UsTimer.start();
 
@@ -280,6 +276,9 @@ int main() {
       AdcStats.reset();
       VoltageStats.reset();
 
+      bleVoltmeter.writeVoltage(voltageStats.avg);
+
+      // debugging stuff below
       printf("MS=%i, NC=%i, ADC(%u) = %lu - %lu - %lu (%lu)    V(%u) = %li - %li - %li (%li)\n", 
           MeasureSelect.read(), InNegControl.read(),
           adcStats.numSamples, adcStats.min, adcStats.avg, adcStats.max, 
@@ -290,10 +289,11 @@ int main() {
       if (UsbSerial.connected()) {
         UsbSerial.printf("\n");
       }
+
       char voltsStr[128];
       itoa(voltageStats.avg, voltsStr, 10);
       strcat(voltsStr, " mV\n");
-      ConsoleService.write(voltsStr);
+      bleConsole.write(voltsStr);
     }
 
     StatusLed.update();
