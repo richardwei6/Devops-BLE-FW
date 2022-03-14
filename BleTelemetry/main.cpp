@@ -20,9 +20,10 @@
 #include "ble/services/HealthThermometerService.h"
 #include "pretty_printer.h"
 #include <MCP2515.h>
+#include "NusService.h" //deduplicate service later
 SPI McpSpi(P0_7,P0_26,P1_8);
 //DigitalOut McpCs(P0_27);
-BufferedSerial Uart(P0_18, NC, 115200);
+BufferedSerial Uart(P1_0, NC, 115200);
 DigitalOut led1(LED1, 1);
 
 
@@ -51,9 +52,6 @@ public:
 
         _ble.init(this, &ThermometerDemo::on_init_complete);
 
-        _event_queue.call_every(500, this, &ThermometerDemo::blink);
-
-        _event_queue.dispatch_forever();
     }
 
 private:
@@ -79,6 +77,7 @@ private:
             ble::advertising_type_t::CONNECTABLE_UNDIRECTED,
             ble::adv_interval_t(ble::millisecond_t(1000))
         );
+        const UUID uartService = NusService::kServiceUuid;
 
         _adv_data_builder.setFlags();
         _adv_data_builder.setLocalServiceList(mbed::make_Span(&_thermometer_uuid, 1));
@@ -162,36 +161,40 @@ void schedule_ble_events(BLE::OnEventsToProcessCallbackContext *context) {
 
 int main()
 {   
-    printf("quack");
+    
     MCP2515 Can(McpSpi,P0_27);
     Can.baudConfig(500000);
     Can.setMode(LOOPBACK);
+    Can.load_ff_0(0,8, NULL);
+    Can.send_0();
+
+    BLE &ble = BLE::Instance();
+    ble.onEventsToProcess(schedule_ble_events);
+    ThermometerDemo demo(ble, event_queue);
+    demo.start();
+    
+    NusService bleConsole(ble);
     while(1){
-        
+        event_queue.dispatch_once();
         uint8_t status = Can.readRXStatus();    
         if((status & 0x80) != 0){
             uint8_t len_out;
             uint8_t data_out[8];
             uint16_t id; 
             Can.readDATA_ff_1(&len_out, data_out, &id);
-            printf("%03x",id);
+            printf("%03x\n",id);
         }
         if((status & 0x40) != 0){
             uint8_t len_out;
             uint8_t data_out[8];
             uint16_t id; 
             Can.readDATA_ff_0(&len_out, data_out, &id);
-            printf("%03x",id);
+            printf("%03x\n",id);
         }
+
+        bleConsole.write("quack");
         
        
     }
-    // BLE &ble = BLE::Instance();
-    // ble.onEventsToProcess(schedule_ble_events);
-
-    // ThermometerDemo demo(ble, event_queue);
-    // demo.start();
-    
-
-    // return 0;
+    return 0;
 }
