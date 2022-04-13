@@ -211,7 +211,7 @@ int main() {
   // Set SWO pin into GPIO mode, since it's used for the ADC CS
   NRF_CLOCK->TRACECONFIG = 0;
 
-  Speaker.period_us(25);
+  Speaker.period_us(10);
   Speaker.write(0.5);
 
   printf("\r\n\r\n\r\n");
@@ -252,7 +252,7 @@ int main() {
   Driver.setCurrent(2000);
 
   while (1) {
-    if (audioTimer2.elapsed_time().count() >= 25) {
+    if (audioTimer2.elapsed_time().count() >= 10) {
       float phase = audioTimer.elapsed_time().count() / 1000000.0 * 440.0 * 2 * 3.14159;
       Speaker.write(0.5 + 0.5 * sin(phase));
       audioTimer2.reset();
@@ -265,11 +265,6 @@ int main() {
     //         Speaker.write(0.75);
     //     }
     // }
-
-    if (!Switch0 || !Switch1 || !Switch2) {
-    }
-
-    event_queue.dispatch_once();
 
     if (UsbSerial.connected()) {
       StatusLed.setIdle(RgbActivity::kGreen);
@@ -298,18 +293,36 @@ int main() {
       case ButtonGesture::Gesture::kClickRelease:
         MeasureSelect = !MeasureSelect;
         break;
+      case ButtonGesture::Gesture::kHoldTransition:  // long press to switch into driver mode
+        InNegControl = !InNegControl;
+        if (InNegControl == 0) {
+          Driver.setCurrent(1000);
+          MeasureSelect = 1;  // set to direct measurement
+          Driver.enable(true);
+        } else {
+          Driver.enable(false);
+        }
+        break;
       default: break;
     }
       
     uint32_t adcValue;
     int32_t voltage;
     if (Meter.readVoltageMv(&voltage, &adcValue)) {
-      StatusLed.pulse(RgbActivity::kCyan);
       AdcStats.addSample(adcValue);
       VoltageStats.addSample(voltage);
       // printf("% 3lims    ADC=%li lsb    V=%li mV\n", 
       //   ConvTimer.read_ms(), adcValue, voltage);
       // ConvTimer.reset();
+      if (DriverEnable == 1) {
+        StatusLed.pulse(RgbActivity::kRed);
+      } else {
+        if (MeasureSelect == 1) {  // direct
+          StatusLed.pulse(RgbActivity::kCyan);
+        } else {  // divided
+          StatusLed.pulse(RgbActivity::kGreen);
+        }
+      } 
     }
 
     if (timer.read_ms() >= 1000) {
@@ -338,6 +351,8 @@ int main() {
       strcat(voltsStr, " mV\n");
       bleConsole.write(voltsStr);
     }
+
+    event_queue.dispatch_once();
 
     // if (LcdUpdateTicker.checkExpired()) {
     //   Lcd.clear();
