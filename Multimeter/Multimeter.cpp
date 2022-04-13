@@ -10,6 +10,7 @@
 #include "RgbActivityLed.h"
 #include "Mcp3201.h"
 #include "StatisticalCounter.h"
+#include "LongTimer.h"
 
 #include "MultimeterMeasurer.h"
 #include "MultimeterDriver.h"
@@ -17,6 +18,10 @@
 #include "StringService.h"
 #include "NusService.h"
 #include "MultimeterService.h"
+
+#include "St7735sGraphics.h"
+#include "DefaultFonts.h"
+#include "Widget.h"
 
 // for itoa
 #include <stdio.h>
@@ -67,6 +72,40 @@ FileHandle *mbed::mbed_override_console(int) {  // redirect printf to SWD UART p
 
 
 USBSerial UsbSerial(false, 0x1209, 0x0001, 0x0001);
+
+
+//
+// LCD and widgets
+//
+St7735sGraphics<160, 80, 1, 26> Lcd(SharedSpi, LcdCs, LcdRs, LcdReset);
+TimerTicker LcdUpdateTicker(100 * 1000, UsTimer);
+
+const uint8_t kContrastActive = 255;
+const uint8_t kContrastStale = 191;
+
+const uint8_t kContrastBackground = 191;
+
+TextWidget widVersionData("BLE DMM", 0, Font5x7, kContrastActive);
+TextWidget widBuildData("  " __DATE__, 0, Font5x7, kContrastBackground);
+Widget* widVersionContents[] = {&widVersionData, &widBuildData};
+HGridWidget<2> widVersionGrid(widVersionContents);
+
+TextWidget widSerial(" ", 0, Font5x7, kContrastBackground);
+
+TextWidget widEnable("     ", 0, Font5x7, kContrastStale);
+LabelFrameWidget widEnableFrame(&widEnable, "ENABLE", Font3x5, kContrastBackground);
+
+StaleNumericTextWidget widMeasV(0, 2, 100 * 1000, Font5x7, kContrastActive, kContrastStale, Font3x5, 1000, 2);
+LabelFrameWidget widMeasVFrame(&widMeasV, "MEAS V", Font3x5, kContrastBackground);
+
+StaleNumericTextWidget widMeasI(0, 2, 100 * 1000, Font5x7, kContrastActive, kContrastStale, Font3x5, 1000, 2);
+LabelFrameWidget widMeasIFrame(&widMeasI, "MEAS I", Font3x5, kContrastBackground);
+
+Widget* widMeasContents[] = {&widEnableFrame, &widMeasVFrame, &widMeasIFrame};
+HGridWidget<3> widMeas(widMeasContents);
+
+Widget* widMainContents[] = {&widVersionGrid, &widSerial, &widMeas};
+VGridWidget<3> widMain(widMainContents);
 
 
 // BLE comms
@@ -207,16 +246,18 @@ int main() {
   LedG = 1;
   LedB = 1;
 
+  Lcd.init();
+
   // Driver.enable();
   Driver.setCurrent(2000);
 
   while (1) {
-    if (!Switch0 || !Switch1 || !Switch2) {
-    // if (audioTimer2.elapsed_time().count() >= 100) {
-    //   float phase = audioTimer.elapsed_time().count() / 1000000.0 * 110.0 * 2 * 3.14159;
-    //   Speaker.write(0.5 + 0.5 * sin(phase));
-    //   audioTimer2.reset();
-    // }
+    if (audioTimer2.elapsed_time().count() >= 25) {
+      float phase = audioTimer.elapsed_time().count() / 1000000.0 * 440.0 * 2 * 3.14159;
+      Speaker.write(0.5 + 0.5 * sin(phase));
+      audioTimer2.reset();
+    }
+
     // if (audioTimer2.elapsed_time().count() >= 1000) {
     //     if (audioTimer2.elapsed_time().count() % 9090 > 4545) {
     //         Speaker.write(0.25);
@@ -224,6 +265,8 @@ int main() {
     //         Speaker.write(0.75);
     //     }
     // }
+
+    if (!Switch0 || !Switch1 || !Switch2) {
     }
 
     event_queue.dispatch_once();
@@ -295,6 +338,16 @@ int main() {
       strcat(voltsStr, " mV\n");
       bleConsole.write(voltsStr);
     }
+
+    // if (LcdUpdateTicker.checkExpired()) {
+    //   Lcd.clear();
+    //   widMain.layout();
+    //   widMain.draw(Lcd, 0, 0);
+    //   SharedSpi.frequency(10000000);
+    //   Lcd.update();
+
+    //   StatusLed.pulse(RgbActivity::kGreen);
+    // }
 
     StatusLed.update();
   }
