@@ -21,6 +21,7 @@
 #include "pretty_printer.h"
 #include <MCP2515.h>
 #include "NusService.h" //deduplicate service later
+#include "slcan.h"
 SPI McpSpi(P0_7,P0_26,P1_8);
 //DigitalOut McpCs(P0_27);
 BufferedSerial Uart(P1_0, NC, 115200);
@@ -63,7 +64,6 @@ private:
         }
 
         print_mac_address();
-
         /* Setup primary service. */
         _thermometer_service = new HealthThermometerService(_ble, _current_temperature, HealthThermometerService::LOCATION_EAR);
 
@@ -159,41 +159,48 @@ void schedule_ble_events(BLE::OnEventsToProcessCallbackContext *context) {
     event_queue.call(Callback<void()>(&context->ble, &BLE::processEvents));
 }
 
+
 int main()
 {   
+    uint8_t candata[8] = {'q','u','a','c','k','c','c','c'};
     
     MCP2515 Can(McpSpi,P0_27);
     Can.baudConfig(500000);
-    Can.setMode(LOOPBACK);
-    Can.load_ff_0(0,8, NULL);
-    Can.send_0();
-
+    Can.setMode(LISTEN);
+    Timer timer;
+    timer.start();
     BLE &ble = BLE::Instance();
     ble.onEventsToProcess(schedule_ble_events);
     ThermometerDemo demo(ble, event_queue);
+    NusService bleConsole(ble);
     demo.start();
     
-    NusService bleConsole(ble);
+
+    
+    
     while(1){
         event_queue.dispatch_once();
-        uint8_t status = Can.readRXStatus();    
+        uint8_t status = Can.readRXStatus(); 
+        uint8_t len_out;
+        uint8_t data_out[8];
+        uint16_t id; 
+        char buf[32]; 
+        bool flag = false;
         if((status & 0x80) != 0){
-            uint8_t len_out;
-            uint8_t data_out[8];
-            uint16_t id; 
+            flag = true;
             Can.readDATA_ff_1(&len_out, data_out, &id);
-            printf("%03x\n",id);
         }
-        if((status & 0x40) != 0){
-            uint8_t len_out;
-            uint8_t data_out[8];
-            uint16_t id; 
+        else if((status & 0x40) != 0){
+            flag = true;
             Can.readDATA_ff_0(&len_out, data_out, &id);
-            printf("%03x\n",id);
         }
-
-        bleConsole.write("quack");
-        
+        if(flag){
+            CANMessage msg(id, data_out, len_out);
+            size_t len = SLCANBase::formatCANMessage(msg,buf, sizeof(buf));
+            buf[len] = '\0';
+            printf("%s\n",buf);
+            bleConsole.write(buf);
+        } 
        
     }
     return 0;
