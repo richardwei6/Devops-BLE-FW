@@ -32,39 +32,42 @@
 // Will be removed once this is sufficiently refactored.
 
 Timer UsTimer;
-DigitalOut LedR(P0_10), LedG(P1_10), LedB(P1_11);
+DigitalOut LedR(P1_11), LedG(P1_12), LedB(P1_13);
 RgbActivityDigitalOut StatusLed(UsTimer, LedR, LedG, LedB, false);
 
-// SPI SharedSpi(P0_21, P1_3, P0_19);  // mosi, miso, sck
-SPI SharedSpi(P0_21, P1_3, P1_0);  // mosi, miso, sck - SCK and CS swapped for MCP3550
-DigitalOut LcdCs(P0_22, 1);
-DigitalOut LcdRs(P0_23);
-DigitalOut LcdReset(P0_12, 0);
+SPI AdcSpi(P1_9, P0_8, P0_13);  // mosi, miso, sck
 
-PwmOut Speaker(P0_7);
+SPI LcdSpi(P0_26, NC, P0_1);  // mosi, miso, sck
+DigitalOut LcdCs(P0_0, 1);
+DigitalOut LcdRs(P0_29);
+DigitalOut LcdReset(P1_15, 0);
 
-DigitalOut GateControl(P1_1, 1);  // power gate
+PwmOut Speaker(P0_14);
 
-DigitalIn Switch0(P0_5);  // overlaid with power switch
+DigitalOut GateControl(P0_25, 1);  // power gate
+
+DigitalIn Switch0(P1_2);  // overlaid with power switch
 ButtonGesture Switch0Gesture(Switch0);
-DigitalIn Switch1(P1_4, PinMode::PullUp);  // up
+DigitalIn Switch1(P0_27, PinMode::PullUp);  // up
 ButtonGesture Switch1Gesture(Switch1);
-DigitalIn Switch2(P0_3, PinMode::PullUp);  // down
+DigitalIn Switch2(P1_10, PinMode::PullUp);  // down
 ButtonGesture Switch2Gesture(Switch2);
 
-BufferedSerial SwdUart(P1_15, NC, 115200);  // tx, rx
+BufferedSerial SwdUart(P1_0, NC, 115200);  // tx, rx
 
-// DigitalOut AdcCs(P1_0, 1);  // SCK and CS swapped for MCP3550
-DigitalOut AdcCs(P0_19, 1);
-DigitalIn AdcSo(P1_3, PinMode::PullUp);
-Mcp3550 Adc(SharedSpi, AdcCs, AdcSo);
-DigitalOut MeasureSelect(P1_2);  // 0 = 1M/100 divider, 1: direct input
-DigitalOut InNegControl(P1_13, 1);  // 0 = GND, 1 = divider
-MultimeterMeasurer Meter(Adc, MeasureSelect, InNegControl);
+DigitalOut AdcCs(P0_15, 1);
+// Mcp3550 Adc(SharedSpi, AdcCs, AdcSo);
+// Measure select options: TBD
+DigitalOut MeasureRange0(P0_19);
+DigitalOut MeasureRange1(P0_21);
+DigitalOut InNegControl(P0_17, 1);  // 0 = GND, 1 = divider
+// MultimeterMeasurer Meter(Adc, MeasureSelect, InNegControl);
 
-DigitalOut DriverEnable(P0_31);  // 1 = enable driver
-PwmOut DriverControl(P0_4);  // current driver setpoint
-MultimeterDriver Driver(DriverEnable, DriverControl);
+DigitalOut DriverEnable(P0_24);  // 1 = enable driver
+PwmOut DriverControl(P0_23);  // current driver setpoint
+DigitalOut DriverRange0(P0_22);
+DigitalOut DriverRange1(P0_20);
+// MultimeterDriver Driver(DriverEnable, DriverControl);
 
 FileHandle *mbed::mbed_override_console(int) {  // redirect printf to SWD UART pins
     return &SwdUart;
@@ -77,7 +80,7 @@ USBSerial UsbSerial(false, 0x1209, 0x0001, 0x0001);
 //
 // LCD and widgets
 //
-St7735sGraphics<160, 80, 1, 26> Lcd(SharedSpi, LcdCs, LcdRs, LcdReset);
+// St7735sGraphics<160, 80, 1, 26> Lcd(SharedSpi, LcdCs, LcdRs, LcdReset);
 TimerTicker LcdUpdateTicker(100 * 1000, UsTimer);
 
 const uint8_t kContrastActive = 255;
@@ -246,10 +249,10 @@ int main() {
   LedG = 1;
   LedB = 1;
 
-  Lcd.init();
+  // Lcd.init();
 
   // Driver.enable();
-  Driver.setCurrent(2000);
+  // Driver.setCurrent(2000);
 
   while (1) {
     if (audioTimer2.elapsed_time().count() >= 10) {
@@ -291,39 +294,39 @@ int main() {
 
     switch (Switch2Gesture.update()) {
       case ButtonGesture::Gesture::kClickRelease:
-        MeasureSelect = !MeasureSelect;
+        // MeasureSelect = !MeasureSelect;
         break;
       case ButtonGesture::Gesture::kHoldTransition:  // long press to switch into driver mode
         InNegControl = !InNegControl;
         if (InNegControl == 0) {
-          Driver.setCurrent(1000);
-          MeasureSelect = 1;  // set to direct measurement
-          Driver.enable(true);
+          // Driver.setCurrent(1000);
+          // MeasureSelect = 1;  // set to direct measurement
+          // Driver.enable(true);
         } else {
-          Driver.enable(false);
+          // Driver.enable(false);
         }
         break;
       default: break;
     }
       
-    uint32_t adcValue;
-    int32_t voltage;
-    if (Meter.readVoltageMv(&voltage, &adcValue)) {
-      AdcStats.addSample(adcValue);
-      VoltageStats.addSample(voltage);
-      // printf("% 3lims    ADC=%li lsb    V=%li mV\n", 
-      //   ConvTimer.read_ms(), adcValue, voltage);
-      // ConvTimer.reset();
-      if (DriverEnable == 1) {
-        StatusLed.pulse(RgbActivity::kRed);
-      } else {
-        if (MeasureSelect == 1) {  // direct
-          StatusLed.pulse(RgbActivity::kCyan);
-        } else {  // divided
-          StatusLed.pulse(RgbActivity::kGreen);
-        }
-      } 
-    }
+    // uint32_t adcValue;
+    // int32_t voltage;
+    // if (Meter.readVoltageMv(&voltage, &adcValue)) {
+    //   AdcStats.addSample(adcValue);
+    //   VoltageStats.addSample(voltage);
+    //   // printf("% 3lims    ADC=%li lsb    V=%li mV\n", 
+    //   //   ConvTimer.read_ms(), adcValue, voltage);
+    //   // ConvTimer.reset();
+    //   if (DriverEnable == 1) {
+    //     StatusLed.pulse(RgbActivity::kRed);
+    //   } else {
+    //     // if (MeasureSelect == 1) {  // direct
+    //       StatusLed.pulse(RgbActivity::kCyan);
+    //     // } else {  // divided
+    //     //   StatusLed.pulse(RgbActivity::kGreen);
+    //     // }
+    //   } 
+    // }
 
     if (timer.read_ms() >= 1000) {
       timer.reset();
@@ -335,12 +338,12 @@ int main() {
       bleVoltmeter.writeVoltage(voltageStats.avg);
 
       // debugging stuff below
-      printf("MS=%i, NC=%i, ADC(%u) = %lu - %lu - %lu (%lu)    V(%u) = %li - %li - %li (%li)\n", 
-          MeasureSelect.read(), InNegControl.read(),
-          adcStats.numSamples, adcStats.min, adcStats.avg, adcStats.max, 
-          adcStats.max-adcStats.min,
-          voltageStats.numSamples, voltageStats.min, voltageStats.avg, voltageStats.max, 
-          voltageStats.max-voltageStats.min);
+      // printf("MS=%i, NC=%i, ADC(%u) = %lu - %lu - %lu (%lu)    V(%u) = %li - %li - %li (%li)\n", 
+      //     MeasureSelect.read(), InNegControl.read(),
+      //     adcStats.numSamples, adcStats.min, adcStats.avg, adcStats.max, 
+      //     adcStats.max-adcStats.min,
+      //     voltageStats.numSamples, voltageStats.min, voltageStats.avg, voltageStats.max, 
+      //     voltageStats.max-voltageStats.min);
 
       if (UsbSerial.connected()) {
         UsbSerial.printf("\n");

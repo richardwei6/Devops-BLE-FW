@@ -3,7 +3,8 @@
         "NRF52840_DK": {
             "target.features_add": ["BLE"],
             "platform.stdio-baud-rate": 115200,
-            "target.enable-objects-extensions": true
+            "target.enable-objects-extensions": true,
+            "target.lf_clock_src": "NRF_LF_SRC_SYNTH"
         }
     }
 }
