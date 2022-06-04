@@ -136,6 +136,12 @@ private:
             return;
         }
 
+        ble::own_address_type_t addr_type;
+        ble::address_t address;
+        _ble.gap().getAddress(addr_type, address);
+        printf("Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+            address.data()[5], address.data()[4], address.data()[3], address.data()[2], address.data()[1], address.data()[0]);
+
         start_advertising();
     }
 
@@ -353,6 +359,8 @@ int main() {
       itoa(voltageStats.avg, voltsStr, 10);
       strcat(voltsStr, " mV\n");
       bleConsole.write(voltsStr);
+
+      StatusLed.pulse(RgbActivity::kCyan); // TODO: temporary liveness indicator
     }
 
     event_queue.dispatch_once();
