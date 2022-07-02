@@ -20,10 +20,11 @@
 #include "ble/services/HealthThermometerService.h"
 #include "pretty_printer.h"
 #include <MCP2515.h>
-#include "NusService.h" //deduplicate service later
 #include "slcan.h"
-SPI McpSpi(P0_7,P0_26,P1_8);
+#include "NusService.h" //deduplicate service later
+SPI McpSpi(P0_26,P0_27,P0_7);
 //DigitalOut McpCs(P0_27);
+
 BufferedSerial Uart(P1_0, NC, 115200);
 DigitalOut led1(LED1, 1);
 
@@ -64,6 +65,7 @@ private:
         }
 
         print_mac_address();
+
         /* Setup primary service. */
         _thermometer_service = new HealthThermometerService(_ble, _current_temperature, HealthThermometerService::LOCATION_EAR);
 
@@ -159,48 +161,58 @@ void schedule_ble_events(BLE::OnEventsToProcessCallbackContext *context) {
     event_queue.call(Callback<void()>(&context->ble, &BLE::processEvents));
 }
 
-
 int main()
 {   
-    uint8_t candata[8] = {'q','u','a','c','k','c','c','c'};
     
-    MCP2515 Can(McpSpi,P0_27);
-    Can.baudConfig(500000);
-    Can.setMode(LISTEN);
+    MCP2515 Can(McpSpi,P0_6);
+    wait_us(10*1000);
+    Can.setMode(CONFIGURATION);
+    wait_us(10*1000);
+    Can.baudConfig(1000);
+    wait_us(10*1000);
+    Can.setMode(NORMAL);
     Timer timer;
     timer.start();
+
+
+    
+
     BLE &ble = BLE::Instance();
     ble.onEventsToProcess(schedule_ble_events);
     ThermometerDemo demo(ble, event_queue);
-    NusService bleConsole(ble);
     demo.start();
-    
+    NusService bleConsole(ble);
 
-    
-    
     while(1){
         event_queue.dispatch_once();
-        uint8_t status = Can.readRXStatus(); 
+        uint8_t status = Can.readRXStatus();    
         uint8_t len_out;
         uint8_t data_out[8];
         uint16_t id; 
-        char buf[32]; 
+        char buf[32];
         bool flag = false;
         if((status & 0x80) != 0){
             flag = true;
-            Can.readDATA_ff_1(&len_out, data_out, &id);
+            Can.readDATA_ff_1(&len_out, data_out, &id); 
         }
         else if((status & 0x40) != 0){
-            flag = true;
-            Can.readDATA_ff_0(&len_out, data_out, &id);
+            flag= true;
+            Can.readDATA_ff_0(&len_out, data_out, &id); 
         }
         if(flag){
             CANMessage msg(id, data_out, len_out);
-            size_t len = SLCANBase::formatCANMessage(msg,buf, sizeof(buf));
+            size_t len =SLCANBase::formatCANMessage(msg, buf, sizeof(buf));
             buf[len] = '\0';
-            printf("%s\n",buf);
             bleConsole.write(buf);
-        } 
+        }
+        if(timer.read_ms() >= 250){
+            timer.reset();
+            byte payload[]  = {0x5b,0x7b};
+            Can.load_ff_0(2, 254, payload);
+            Can.send_0();
+        }
+        
+        
        
     }
     return 0;
