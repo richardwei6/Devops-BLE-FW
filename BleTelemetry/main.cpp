@@ -22,11 +22,17 @@
 #include <MCP2515.h>
 #include "slcan.h"
 #include "NusService.h" //deduplicate service later
-SPI McpSpi(P0_26,P0_27,P0_7);
+#include "RgbActivityLed.h"
+
+SPI McpSpi(P0_26,P0_27,P0_7);  // SI, SO, SCK
 //DigitalOut McpCs(P0_27);
+MCP2515 Can(McpSpi,P0_6);
 
 BufferedSerial Uart(P1_0, NC, 115200);
-DigitalOut led1(LED1, 1);
+
+Timer UsTimer;
+DigitalOut LedR(P0_30), LedG(P0_5), LedB(P0_4);
+RgbActivityDigitalOut StatusLed(UsTimer, LedR, LedG, LedB, false);
 
 
 //cs 10, so 9, si 6,sck 5
@@ -123,10 +129,6 @@ private:
         _thermometer_service->updateTemperature(_current_temperature);
     }
 
-    void blink(void) {
-        led1 = !led1;
-    }
-
 private:
     /* Event handler */
 
@@ -163,8 +165,8 @@ void schedule_ble_events(BLE::OnEventsToProcessCallbackContext *context) {
 
 int main()
 {   
+    UsTimer.start();
     
-    MCP2515 Can(McpSpi,P0_6);
     wait_us(10*1000);
     Can.setMode(CONFIGURATION);
     wait_us(10*1000);
@@ -173,9 +175,6 @@ int main()
     Can.setMode(NORMAL);
     Timer timer;
     timer.start();
-
-
-    
 
     BLE &ble = BLE::Instance();
     ble.onEventsToProcess(schedule_ble_events);
@@ -204,16 +203,19 @@ int main()
             size_t len =SLCANBase::formatCANMessage(msg, buf, sizeof(buf));
             buf[len] = '\0';
             bleConsole.write(buf);
+
+            StatusLed.pulse(RgbActivity::kGreen);
         }
-        if(timer.read_ms() >= 250){
+        if(timer.read_ms() >= 1000){
             timer.reset();
-            byte payload[]  = {0x5b,0x7b};
-            Can.load_ff_0(2, 254, payload);
+            Can.load_ff_0(0, 0x60, NULL);
             Can.send_0();
+
+            StatusLed.pulse(RgbActivity::kYellow);
         }
         
         
-       
+        StatusLed.update();      
     }
     return 0;
 }
