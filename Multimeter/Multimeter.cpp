@@ -69,6 +69,12 @@ const uint16_t measureRangeRatio[] = {
   1100 / 100,  // b10, ~1:10
   1  // b11, 1:1
 };
+MeasurementWidget::Config voltRangeConfig[] = {
+  {1000, 1, 3, 'k', 'V'},
+  {1, 3, 1, ' ', 'V'},
+  {1, 2, 2, ' ', 'V'},
+  {1, 1, 3, ' ', 'V'}
+};
 uint16_t kMeasureRange1 = 0x03;  // 1:1 measurement range, b11
 MultimeterMeasurer<4, 2> Meter(Adc, measureRangeRatio, measureRangeControl);
 
@@ -89,6 +95,12 @@ const char* driverRangeString[] = {
   "100 U",
   "10 U ",
   " 1 U "
+};
+MeasurementWidget::Config resistanceRangeConfig[] = {
+  {1, 4, 0, ' ', 'R'},
+  {1000, 2, 2, 'k', 'R'},
+  {1000, 3, 1, 'k', 'R'},
+  {1000, 4, 0, 'k', 'R'}
 };
 uint16_t kDriverRange1Ma = 0;
 MultimeterDriver<4, 2> Driver(DriverEnable, DriverControl, driverRangeResistance, driverRangeControl);
@@ -123,18 +135,7 @@ TextWidget widBuildData("  " __DATE__, 0, Font5x7, kContrastBackground);
 Widget* widVersionContents[] = {&widVersionData, &widBuildData};
 HGridWidget<2> widVersionGrid(widVersionContents);
 
-StaleNumericTextWidget widMeasV(0, 3, 100 * 1000, FontArial32, kContrastActive, kContrastStale, FontArial16, 1000, 3);
-StaleTextWidget widMeasMode("   ", 3, 100 * 1000, FontArial16, kContrastActive, kContrastStale);
-StaleTextWidget widMeasUnits("   ", 3, 100 * 1000, FontArial16, kContrastActive, kContrastStale);
-
-MeasurementWidget widMeasurement(kContrastActive, kContrastBackground, kContrastStale, 160, 48);
-
-Widget* measContents[] = {
-    NULL, NULL, &widMeasMode,
-    NULL, NULL, NULL,
-    &widMeasV, NULL, &widMeasUnits
-};
-FixedGridWidget widMeas(measContents, 160, 48);
+MeasurementWidget widMeas(kContrastActive, kContrastBackground, kContrastStale, 160, 48);
 
 TextWidget widMode("     ", 5, Font5x7, kContrastStale);
 LabelFrameWidget widModeFrame(&widMode, "MODE", Font3x5, kContrastBackground);
@@ -365,13 +366,12 @@ int main() {
 
             widMode.setValue(" VLT ");
             widDriver.setValue(" OFF ");
-            widMeasMode.setValue(" DC");
-            widMeasUnits.setValue("  V");
           }
-          Meter.autoRange(adcValue);
-          widMeasV.setValue(voltage);
+          widMeas.setConfig(voltRangeConfig[Meter.getRange()]);
+          widMeas.setValue(voltage);
           widRange.setValue(rangeDivide);
 
+          Meter.autoRange(adcValue);
           if (rangeDivide > 1) {  // range beyond 1:1 indicates liveness (1:1 range floats and is unreliable)
             AutoShutdownTimer.reset();
           }
@@ -387,10 +387,9 @@ int main() {
             widMode.setValue(" RES ");
             widRange.setValue(1);
             widDriver.setValue(driverRangeString[Driver.getRange()]);
-            widMeasMode.setValue("   ");
-            widMeasUnits.setValue("  R");
           }
-          widMeasV.setValue((int64_t)voltage * 1000000 / Driver.getCurrentUa());
+          widMeas.setConfig(resistanceRangeConfig[Driver.getRange()]);
+          widMeas.setValue((int64_t)voltage * 1000000 / Driver.getCurrentUa());
           widDriver.setValue(driverRangeString[Driver.getRange()]);
 
           if (Driver.getRange() < sizeof(driverRangeResistance) / sizeof(driverRangeResistance[0])) {  // range beyond max (open) indicates liveness
@@ -407,13 +406,11 @@ int main() {
 
             widMode.setValue(" DIO ");
             widDriver.setValue(driverRangeString[Driver.getRange()]);
-            widMeasMode.setValue(" Vf");
-            widMeasUnits.setValue("  V");
           }
-          Meter.autoRange(adcValue);  // diodes may exceed 1:1 range
-          widMeasV.setValue(voltage);
-          widRange.setValue(rangeDivide);
+          widMeas.setConfig(voltRangeConfig[Meter.getRange()]);
+          widMeas.setValue(voltage);
 
+          Meter.autoRange(adcValue);  // diodes may exceed 1:1 range
           if (voltage < 1800) { // arbitrary threshold for "something is there"
             AutoShutdownTimer.reset();
           }
@@ -429,11 +426,11 @@ int main() {
 
             widMode.setValue(" CON ");
             widRange.setValue(1);
+            widMeas.setConfig(resistanceRangeConfig[Driver.getRange()]);
             widDriver.setValue(driverRangeString[Driver.getRange()]);
-            widMeasMode.setValue("   ");
-            widMeasUnits.setValue("  R");
           }
-          widMeasV.setValue(voltage);
+          widMeas.setValue(voltage);
+
           if (voltage < 100) {
             if (!continuityTonePlaying) {
               Speaker.tone(kSpeakerBeepFrequency, kSpeakerBeepAmplitude);
