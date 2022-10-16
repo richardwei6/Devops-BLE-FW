@@ -23,6 +23,7 @@
 #include "St7735sGraphics.h"
 #include "DefaultFonts.h"
 #include "Widget.h"
+#include "MeasurementWidget.h"
 
 // for itoa
 #include <stdio.h>
@@ -119,6 +120,8 @@ HGridWidget<2> widVersionGrid(widVersionContents);
 StaleNumericTextWidget widMeasV(0, 3, 100 * 1000, FontArial32, kContrastActive, kContrastStale, FontArial16, 1000, 3);
 StaleTextWidget widMeasMode("   ", 3, 100 * 1000, FontArial16, kContrastActive, kContrastStale);
 StaleTextWidget widMeasUnits("   ", 3, 100 * 1000, FontArial16, kContrastActive, kContrastStale);
+
+MeasurementWidget widMeasurement(kContrastActive, kContrastStale, 160, 48);
 
 Widget* measContents[] = {
     NULL, NULL, &widMeasMode,
