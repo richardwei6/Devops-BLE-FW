@@ -36,11 +36,13 @@ Timer UsTimer;
 DigitalOut LedR(P1_11), LedG(P1_12), LedB(P1_13);
 RgbActivityDigitalOut StatusLed(UsTimer, LedR, LedG, LedB, false);
 
+const uint32_t kAutoShutdownPeriodUs = 120 * 1000 * 1000;
 Timer AutoShutdownTimer;
 
 PwmOut SpeakerPwm(P0_14);
 TickerSpeaker Speaker(SpeakerPwm, 20);
 const uint32_t kSpeakerBeepFrequency = 2400;
+const uint32_t kSpeakerAutoShutdownFrequency = 1200;
 const float kSpeakerBeepAmplitude = 0.1;
 const uint32_t kSpeakerBeepDurationUs = 100 * 1000;
 
@@ -133,13 +135,13 @@ LabelFrameWidget widDriverFrame(&widDriver, "DRVR", Font3x5, kContrastBackground
 Widget* widConfigContents[] = {&widModeFrame, &widRangeFrame, &widDriverFrame};
 HGridWidget<3> widConfig(widConfigContents);
 
-TextWidget widSerial("SER", 0, Font5x7, kContrastBackground);
-LabelFrameWidget widSerialFrame(&widSerial, "", Font3x5, kContrastInvisible);  // to match alignment with mode
+NumericTextWidget widShutdown(0, 3, Font5x7, kContrastBackground);
+LabelFrameWidget widShutdownFrame(&widShutdown, "SHDN", Font3x5, kContrastBackground);  // to match alignment with mode
 
 Widget* mainContents[] = {
     NULL, NULL, NULL,
     NULL, &widMeas, NULL,
-    &widConfig, NULL, &widSerialFrame
+    &widConfig, NULL, &widShutdownFrame
 };
 FixedGridWidget widMain(mainContents, 160, 80);
 
@@ -275,6 +277,7 @@ int main() {
 
   UsTimer.start();
   AutoShutdownTimer.start();
+  uint32_t lastShutdownRemainingMs = UINT32_MAX;
 
   LedR = 1;
   LedG = 1;
@@ -321,6 +324,7 @@ int main() {
       switch (Switch0Gesture.update()) {
         case ButtonGesture::Gesture::kClickRelease:
           mode = (kMultimeterMode)((mode + 1) % 4);
+          AutoShutdownTimer.reset();
           Speaker.tone(kSpeakerBeepFrequency, kSpeakerBeepAmplitude, kSpeakerBeepDurationUs);
           break;
         case ButtonGesture::Gesture::kHoldTransition:  // long press to shut off
@@ -356,6 +360,9 @@ int main() {
           Meter.autoRange(adcValue);
           widMeasV.setValue(voltage);
           widRange.setValue(rangeDivide);
+          if (rangeDivide > 1) {  // range beyond 1:1 indicates liveness (1:1 range floats and is unreliable)
+            AutoShutdownTimer.reset();
+          }
           break;
         case kMultimeterMode::kResistance:
           if (lastMode != mode) {
@@ -409,6 +416,7 @@ int main() {
             if (!continuityTonePlaying) {
               Speaker.tone(kSpeakerBeepFrequency, kSpeakerBeepAmplitude);
               continuityTonePlaying = true;
+              AutoShutdownTimer.reset();  // continuity indicates liveness
             }
           } else {
             if (continuityTonePlaying) {
@@ -462,6 +470,24 @@ int main() {
 
     event_queue.dispatch_once();
 
+    int32_t shutdownRemainingMs = int32_t(kAutoShutdownPeriodUs / 1000) - AutoShutdownTimer.read_ms();
+    if (shutdownRemainingMs >= 0) {
+      if (shutdownRemainingMs < 2000) {
+        if ((lastShutdownRemainingMs % 500) < (shutdownRemainingMs % 500)) {
+          Speaker.tone(kSpeakerAutoShutdownFrequency, kSpeakerBeepAmplitude, kSpeakerBeepDurationUs);
+        }
+      } else if (shutdownRemainingMs <= 10000) {
+        if ((lastShutdownRemainingMs % 2000) < (shutdownRemainingMs % 2000)) {
+          Speaker.tone(kSpeakerAutoShutdownFrequency, kSpeakerBeepAmplitude, kSpeakerBeepDurationUs);
+        }
+      }
+      widShutdown.setValue(shutdownRemainingMs / 1000);
+    } else {
+      widShutdown.setValue(0);
+      GateControl = 0;
+    }
+    lastShutdownRemainingMs = shutdownRemainingMs;
+    
     // TODO: this takes a long time, this may mess with continuity mode
     if (LcdUpdateTicker.checkExpired()) {
       Lcd.clear();
