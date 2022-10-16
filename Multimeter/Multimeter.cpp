@@ -84,6 +84,12 @@ const uint32_t driverRangeResistance[] = {
   100000,  // b10, 1V = 10uA
   1000000  // b11, 1V = 1uA
 };
+const char* driverRangeString[] = {
+  " 1 M ",
+  "100 U",
+  "10 U ",
+  " 1 U "
+};
 uint16_t kDriverRange1Ma = 0;
 MultimeterDriver<4, 2> Driver(DriverEnable, DriverControl, driverRangeResistance, driverRangeControl);
 
@@ -121,7 +127,7 @@ StaleNumericTextWidget widMeasV(0, 3, 100 * 1000, FontArial32, kContrastActive, 
 StaleTextWidget widMeasMode("   ", 3, 100 * 1000, FontArial16, kContrastActive, kContrastStale);
 StaleTextWidget widMeasUnits("   ", 3, 100 * 1000, FontArial16, kContrastActive, kContrastStale);
 
-MeasurementWidget widMeasurement(kContrastActive, kContrastStale, 160, 48);
+MeasurementWidget widMeasurement(kContrastActive, kContrastBackground, kContrastStale, 160, 48);
 
 Widget* measContents[] = {
     NULL, NULL, &widMeasMode,
@@ -365,6 +371,7 @@ int main() {
           Meter.autoRange(adcValue);
           widMeasV.setValue(voltage);
           widRange.setValue(rangeDivide);
+
           if (rangeDivide > 1) {  // range beyond 1:1 indicates liveness (1:1 range floats and is unreliable)
             AutoShutdownTimer.reset();
           }
@@ -379,11 +386,13 @@ int main() {
 
             widMode.setValue(" RES ");
             widRange.setValue(1);
-            widDriver.setValue(" ??? ");
+            widDriver.setValue(driverRangeString[Driver.getRange()]);
             widMeasMode.setValue("   ");
             widMeasUnits.setValue("  R");
           }
           widMeasV.setValue((int64_t)voltage * 1000000 / Driver.getCurrentUa());
+          widDriver.setValue(driverRangeString[Driver.getRange()]);
+
           if (Driver.getRange() < sizeof(driverRangeResistance) / sizeof(driverRangeResistance[0])) {  // range beyond max (open) indicates liveness
             AutoShutdownTimer.reset();
           }
@@ -397,13 +406,14 @@ int main() {
             Driver.enable(true);
 
             widMode.setValue(" DIO ");
-            widDriver.setValue(" ??? ");
+            widDriver.setValue(driverRangeString[Driver.getRange()]);
             widMeasMode.setValue(" Vf");
             widMeasUnits.setValue("  V");
           }
           Meter.autoRange(adcValue);  // diodes may exceed 1:1 range
           widMeasV.setValue(voltage);
           widRange.setValue(rangeDivide);
+
           if (voltage < 1800) { // arbitrary threshold for "something is there"
             AutoShutdownTimer.reset();
           }
@@ -419,7 +429,7 @@ int main() {
 
             widMode.setValue(" CON ");
             widRange.setValue(1);
-            widDriver.setValue(" ??? ");
+            widDriver.setValue(driverRangeString[Driver.getRange()]);
             widMeasMode.setValue("   ");
             widMeasUnits.setValue("  R");
           }

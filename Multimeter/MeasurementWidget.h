@@ -7,10 +7,10 @@
 
 class MeasurementWidget : public Widget {
 public:
-  MeasurementWidget(uint8_t kContrastActive, uint8_t kContrastStale, uint16_t w, uint16_t h) : 
+  MeasurementWidget(uint8_t kContrastActive, uint8_t kContrastBackground, uint8_t kContrastStale, uint16_t w, uint16_t h) : 
     widMeasDisp_(0, 3, 100 * 1000, FontArial32, kContrastActive, kContrastStale, FontArial16, 1000, 3),
-    widMeasMode_("   ", 3, 100 * 1000, FontArial16, kContrastActive, kContrastStale),
-    widMeasUnits_("   ", 3, 100 * 1000, FontArial16, kContrastActive, kContrastStale),
+    widMeasMode_("   ", 3, FontArial16, kContrastBackground),
+    widMeasUnits_("   ", 3, FontArial16, kContrastBackground),
     widMeas_(measContents_, w, h)
     {
 
@@ -25,8 +25,8 @@ public:
 
 protected:
   StaleNumericTextWidget widMeasDisp_;
-  StaleTextWidget widMeasMode_;
-  StaleTextWidget widMeasUnits_;
+  TextWidget widMeasMode_;
+  TextWidget widMeasUnits_;
 
   Widget* measContents_[9] = {
       NULL, NULL, &widMeasMode_,
