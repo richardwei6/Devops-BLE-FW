@@ -68,6 +68,7 @@ const uint16_t measureRangeRatio[] = {
   1100 / 100,  // b10, ~1:10
   1  // b11, 1:1
 };
+uint16_t kMeasureRange1 = 0x03;  // 1:1 measurement range, b11
 MultimeterMeasurer<4, 2> Meter(Adc, measureRangeRatio, measureRangeControl);
 
 DigitalOut DriverEnable(P0_24);  // 1 = enable driver
@@ -78,10 +79,11 @@ DigitalOut DriverRange1(P0_20);
 DigitalOut* const driverRangeControl[] = {&DriverRange0, &DriverRange1};
 const uint32_t driverRangeResistance[] = {
   1000,  // b00, 1V = 1mA
-  100,  // b01, 1V = 100uA
-  10,  // b10, 1V = 10uA
-  1  // b11, 1V = 1uA
+  10000,  // b01, 1V = 100uA
+  100000,  // b10, 1V = 10uA
+  1000000  // b11, 1V = 1uA
 };
+uint16_t kDriverRange1Ma = 0;
 MultimeterDriver<4, 2> Driver(DriverEnable, DriverControl, driverRangeResistance, driverRangeControl);
 
 TimerTicker DebugTicker(1000 * 1000, UsTimer);
@@ -348,9 +350,9 @@ int main() {
         case kMultimeterMode::kVoltage:
           if (lastMode != mode) {
             Adc.init(Mcp3561::kOsr::k98304);  // high precision mode
+            Meter.setRange(kMeasureRange1);  // starting range
             InNegControl = 1;
             Driver.enable(false);
-            Driver.setCurrent(0);
 
             widMode.setValue(" VLT ");
             widDriver.setValue(" OFF ");
@@ -367,10 +369,10 @@ int main() {
         case kMultimeterMode::kResistance:
           if (lastMode != mode) {
             Adc.init(Mcp3561::kOsr::k98304);  // high precision mode
-            Meter.setRange(0xff);  // in 1:1 mode
+            Meter.setRange(kMeasureRange1);
             InNegControl = 0;
+            Driver.setRange(kDriverRange1Ma);  // starting range
             Driver.enable(true);
-            Driver.setCurrent(1000);  // TODO lower current driver
 
             widMode.setValue(" RES ");
             widRange.setValue(1);
@@ -378,14 +380,14 @@ int main() {
             widMeasMode.setValue("   ");
             widMeasUnits.setValue("  R");
           }
-
+          widMeasV.setValue((int64_t)voltage * 1000000 / Driver.getCurrentUa());
           break;
         case kMultimeterMode::kDiode:
           if (lastMode != mode) {
             Adc.init(Mcp3561::kOsr::k98304);  // high precision mode
             InNegControl = 0;
+            Driver.setRange(kDriverRange1Ma);
             Driver.enable(true);
-            Driver.setCurrent(1000);
 
             widMode.setValue(" DIO ");
             widDriver.setValue(" ??? ");
@@ -399,10 +401,10 @@ int main() {
         case kMultimeterMode::kContinuity:
           if (lastMode != mode) {
             Adc.init(Mcp3561::kOsr::k2048);  // fast mode
-            Meter.setRange(0xff);  // in 1:1 mode
+            Meter.setRange(kMeasureRange1);
             InNegControl = 0;
+            Driver.setRange(kDriverRange1Ma);
             Driver.enable(true);
-            Driver.setCurrent(1000);
             continuityTonePlaying = false;
 
             widMode.setValue(" CON ");

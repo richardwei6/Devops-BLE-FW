@@ -17,17 +17,34 @@ public:
   }
 
   void enable(bool enable = true) {
+    if (enable) {
+      control_ = (kVref - 1) / kVref;  // set at 1v across reference resistor when running
+    } else {
+      control_ = 1;  // turn off driver when not running
+    }
     enable_ = enable;
   }
 
-  void setCurrent(uint16_t currentUa) {
-    setCurrentUa_ = currentUa;
-    control_ = (float)((int64_t)setCurrentUa_ * dacSlope_ / kCalibrationDenominator + dacIntercept_) / (float)kDacCounts;
-
+  uint8_t getRange() {
+    uint8_t rangeIndex = 0;
+    for (size_t i=0; i<RangeBits; i++) {
+      rangeIndex |= (rangeControl_[i]->read() == 1) << i;
+    }
+    return rangeIndex;
   }
 
-  uint16_t getCurrentUa() {
-    return setCurrentUa_;
+  void setRange(uint8_t rangeBits) {
+    for (size_t i=0; i<RangeBits; i++) {
+      rangeControl_[i]->write((rangeBits & (1 << i)) != 0);
+    }
+  }
+
+  uint32_t getCurrentUa() {
+    if (enable_) {
+      return 1000000 / rangeResistance_[getRange()];
+    } else {
+      return 0;
+    }
   }
 
 protected:
@@ -35,15 +52,8 @@ protected:
   PwmOut& control_;  // Sets the target voltage downstream of the resistor
   const uint32_t* rangeResistance_;
   DigitalOut* const *rangeControl_;
-  uint16_t setCurrentUa_;
 
   static constexpr float kVref = 3.3;
-  static constexpr float kResistance = 1000;
-  static const int32_t kDacCounts = 262144;
-  static const int32_t kCalibrationDenominator = 1000;
-
-  static const int32_t dacSlope_ = (float)-kCalibrationDenominator * kDacCounts * kResistance / 1000 / 1000 / kVref;
-  int32_t dacIntercept_ = kDacCounts * kVref / kVref;
 };
 
 #endif
