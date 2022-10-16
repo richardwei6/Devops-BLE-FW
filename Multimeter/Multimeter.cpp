@@ -392,7 +392,7 @@ int main() {
           widMeas.setValue((int64_t)voltage * 1000000 / Driver.getCurrentUa());
           widDriver.setValue(driverRangeString[Driver.getRange()]);
 
-          if (Driver.getRange() < sizeof(driverRangeResistance) / sizeof(driverRangeResistance[0])) {  // range beyond max (open) indicates liveness
+          if (Driver.getRange() < sizeof(driverRangeResistance) / sizeof(driverRangeResistance[0]) - 1) {  // range beyond max (open) indicates liveness
             AutoShutdownTimer.reset();
           }
           Driver.autoRangeResistance(voltage);
