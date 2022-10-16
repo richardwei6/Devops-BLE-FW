@@ -36,7 +36,7 @@ Timer UsTimer;
 DigitalOut LedR(P1_11), LedG(P1_12), LedB(P1_13);
 RgbActivityDigitalOut StatusLed(UsTimer, LedR, LedG, LedB, false);
 
-const uint32_t kAutoShutdownPeriodUs = 120 * 1000 * 1000;
+const uint32_t kAutoShutdownPeriodUs = 240 * 1000 * 1000;
 Timer AutoShutdownTimer;
 
 PwmOut SpeakerPwm(P0_14);
@@ -381,6 +381,10 @@ int main() {
             widMeasUnits.setValue("  R");
           }
           widMeasV.setValue((int64_t)voltage * 1000000 / Driver.getCurrentUa());
+          if (Driver.getRange() < sizeof(driverRangeResistance) / sizeof(driverRangeResistance[0])) {  // range beyond max (open) indicates liveness
+            AutoShutdownTimer.reset();
+          }
+          Driver.autoRangeResistance(voltage);
           break;
         case kMultimeterMode::kDiode:
           if (lastMode != mode) {
@@ -397,6 +401,9 @@ int main() {
           Meter.autoRange(adcValue);  // diodes may exceed 1:1 range
           widMeasV.setValue(voltage);
           widRange.setValue(rangeDivide);
+          if (voltage < 1800) { // arbitrary threshold for "something is there"
+            AutoShutdownTimer.reset();
+          }
           break;
         case kMultimeterMode::kContinuity:
           if (lastMode != mode) {
