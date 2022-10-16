@@ -8,9 +8,12 @@
 class MeasurementWidget : public Widget {
 public:
   MeasurementWidget(uint8_t kContrastActive, uint8_t kContrastBackground, uint8_t kContrastStale, uint16_t w, uint16_t h) : 
-    widMeasDisp_(0, 3, 100 * 1000, FontArial32, kContrastActive, kContrastStale, FontArial16, 1000, 3),
+    widDisplaySign_(signBuf_, 1, 100 * 1000, FontArial32, kContrastActive, kContrastStale),
+    widDisplayInt_(intBuf_, 0, 100 * 1000, FontArial32, kContrastActive, kContrastStale),
+    widDisplayFrac_(fracBuf_, 3, 100 * 1000, FontArial16, kContrastActive, kContrastStale),
+    widDisplay_(widDisplayContents_, 1, true),
     widMeasMode_("   ", 3, FontArial16, kContrastBackground),
-    widMeasUnits_("  ", 2, FontArial16, kContrastBackground),
+    widMeasUnits_(unitsStr_, 2, FontArial16, kContrastBackground),
     widMeas_(measContents_, w, h),
     config_({1, 0, 0, ' ', ' '})
     {
@@ -42,23 +45,53 @@ public:
   }
 
   void setValue(int32_t value) {
-    widMeasDisp_.setValue(value / config_.divider);
+    int32_t intpart = std::abs(value) / config_.divider;
+
+    if (value < 0) {
+      signBuf_[0] = '-'; signBuf_[1] = '\0';
+    } else {
+      signBuf_[0] = '\0';
+    }
+    widDisplaySign_.setValue(signBuf_);
+
+    NumericTextWidget::itoa(intpart, intBuf_, 10);
+    widDisplayInt_.setValue(intBuf_);
+
+    if (config_.fractionalCount > 0) {
+      fracBuf_[0] = '.';
+      uint32_t fractionalMax = 10;
+      for (size_t i=0; (i + 1)<config_.fractionalCount; i++) {
+        fractionalMax *= 10;
+      }
+      int32_t fracpart = std::abs(value) % config_.divider * fractionalMax / config_.divider;
+      NumericTextWidget::itoa(fracpart, fracBuf_ + 1, 10, config_.fractionalCount, '0');
+    } else {
+      fracBuf_[0] = '\0';
+    }
+    widDisplayFrac_.setValue(fracBuf_);
   }
 
 protected:
-  StaleNumericTextWidget widMeasDisp_;
+  char signBuf_[2] = {'\0'}, intBuf_[11 + 1] = {'\0'}, fracBuf_[1 + 11 + 1] = {'\0'};
+
+  StaleTextWidget widDisplaySign_;
+  StaleTextWidget widDisplayInt_;
+  StaleTextWidget widDisplayFrac_;
+  Widget* widDisplayContents_[3] = {&widDisplaySign_, &widDisplayInt_, &widDisplayFrac_};
+  HGridWidget<3> widDisplay_;
+
   TextWidget widMeasMode_;
+  char unitsStr_[3] = {'\0'};
   TextWidget widMeasUnits_;
 
   Widget* measContents_[9] = {
       NULL, NULL, &widMeasMode_,
       NULL, NULL, NULL,
-      &widMeasDisp_, NULL, &widMeasUnits_
+      &widDisplay_, NULL, &widMeasUnits_
   };
   FixedGridWidget widMeas_;
 
   Config config_;
-  char unitsStr_[3] = {'\0', '\0', '\0'};
 };
 
 #endif

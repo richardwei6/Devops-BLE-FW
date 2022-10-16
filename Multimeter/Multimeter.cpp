@@ -70,10 +70,10 @@ const uint16_t measureRangeRatio[] = {
   1  // b11, 1:1
 };
 MeasurementWidget::Config voltRangeConfig[] = {
-  {1000, 1, 3, 'k', 'V'},
-  {1, 3, 1, ' ', 'V'},
-  {1, 2, 2, ' ', 'V'},
-  {1, 1, 3, ' ', 'V'}
+  {1000000, 1, 3, 'k', 'V'},
+  {1000, 3, 1, ' ', 'V'},
+  {1000, 2, 2, ' ', 'V'},
+  {1000, 1, 3, ' ', 'V'}
 };
 uint16_t kMeasureRange1 = 0x03;  // 1:1 measurement range, b11
 MultimeterMeasurer<4, 2> Meter(Adc, measureRangeRatio, measureRangeControl);
@@ -97,10 +97,10 @@ const char* driverRangeString[] = {
   " 1 U "
 };
 MeasurementWidget::Config resistanceRangeConfig[] = {
-  {1, 4, 0, ' ', 'R'},
-  {1000, 2, 2, 'k', 'R'},
-  {1000, 3, 1, 'k', 'R'},
-  {1000, 4, 0, 'k', 'R'}
+  {1000, 4, 0, ' ', 'R'},
+  {1000000, 2, 2, 'k', 'R'},
+  {1000000, 3, 1, 'k', 'R'},
+  {1000000, 4, 0, 'k', 'R'}
 };
 uint16_t kDriverRange1Ma = 0;
 MultimeterDriver<4, 2> Driver(DriverEnable, DriverControl, driverRangeResistance, driverRangeControl);
@@ -429,7 +429,7 @@ int main() {
             widMeas.setConfig(resistanceRangeConfig[Driver.getRange()]);
             widDriver.setValue(driverRangeString[Driver.getRange()]);
           }
-          widMeas.setValue(voltage);
+          widMeas.setValue((int64_t)voltage * 1000000 / Driver.getCurrentUa());
 
           if (voltage < 100) {
             if (!continuityTonePlaying) {
