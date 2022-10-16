@@ -7,10 +7,12 @@
  * Constant current driver controller for the multimeter.
  * Handles current-to-DAC conversion and auto-ranging.
  */
+template <size_t RangeCount, uint8_t RangeBits>
 class MultimeterDriver {
 public:
-  MultimeterDriver(DigitalOut& enable, PwmOut& control) :
-      enable_(enable), control_(control) {
+  MultimeterDriver(DigitalOut& enable, PwmOut& control, 
+  const uint32_t rangeResistance[RangeCount], DigitalOut* const rangeControl[RangeBits]) :
+      enable_(enable), control_(control), rangeResistance_(rangeResistance), rangeControl_(rangeControl) {
     control_.period_us(50);
   }
 
@@ -19,12 +21,21 @@ public:
   }
 
   void setCurrent(uint16_t currentUa) {
-    control_ = (float)((int64_t)currentUa * dacSlope_ / kCalibrationDenominator + dacIntercept_) / (float)kDacCounts;
+    setCurrentUa_ = currentUa;
+    control_ = (float)((int64_t)setCurrentUa_ * dacSlope_ / kCalibrationDenominator + dacIntercept_) / (float)kDacCounts;
+
+  }
+
+  uint16_t getCurrentUa() {
+    return setCurrentUa_;
   }
 
 protected:
   DigitalOut& enable_;  // 0 = disabled, 1 = enabled
   PwmOut& control_;  // Sets the target voltage downstream of the resistor
+  const uint32_t* rangeResistance_;
+  DigitalOut* const *rangeControl_;
+  uint16_t setCurrentUa_;
 
   static constexpr float kVref = 3.3;
   static constexpr float kResistance = 1000;

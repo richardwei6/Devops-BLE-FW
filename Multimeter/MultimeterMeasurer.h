@@ -8,17 +8,11 @@
  * Volts measurement stage for the multimeter.
  * Optional auto-ranging.
  */
-template <size_t MeasureRangeCount, uint8_t MeasureRangeBits>
+template <size_t RangeCount, uint8_t RangeBits>
 class MultimeterMeasurer {
 public:
-  MultimeterMeasurer(Mcp3561& adc, uint16_t measureRangeDivide[], DigitalOut* measureRange[]) :
-      adc_(adc) {
-    for (size_t i=0; i<MeasureRangeCount; i++) {
-      measureRangeDivide_[i] = measureRangeDivide[i];
-    }
-    for (size_t i=0; i<MeasureRangeBits; i++) {
-      measureRange_[i] = measureRange[i];
-    }
+  MultimeterMeasurer(Mcp3561& adc, const uint16_t rangeRatio[RangeCount], DigitalOut* const rangeControl[RangeBits]) :
+      adc_(adc), rangeRatio_(rangeRatio), rangeControl_(rangeControl) {
     rangeUpTimer_.start();
     rangeDownTimer_.start();
   }
@@ -31,7 +25,7 @@ public:
       return false;
     }
 
-    uint16_t rangeDivide = measureRangeDivide_[getRange()];
+    uint16_t rangeDivide = rangeRatio_[getRange()];
     int32_t voltage = (int64_t)adcValue * kVoltageDenominator * rangeDivide * kVref / kAdcCounts / kVrefDenominator;
 
     if (voltageOut != NULL) {
@@ -49,15 +43,15 @@ public:
 
   uint8_t getRange() {
     uint8_t rangeIndex = 0;
-    for (size_t i=0; i<MeasureRangeBits; i++) {
-      rangeIndex |= (measureRange_[i]->read() == 1) << i;
+    for (size_t i=0; i<RangeBits; i++) {
+      rangeIndex |= (rangeControl_[i]->read() == 1) << i;
     }
     return rangeIndex;
   }
 
   void setRange(uint8_t rangeBits) {
-    for (size_t i=0; i<MeasureRangeBits; i++) {
-      measureRange_[i]->write((rangeBits & (1 << i)) != 0);
+    for (size_t i=0; i<RangeBits; i++) {
+      rangeControl_[i]->write((rangeBits & (1 << i)) != 0);
     }
   }
 
@@ -67,8 +61,8 @@ public:
     uint32_t downRangeThreshold = UINT32_MAX;  // default that can't ever be triggered, if we're at lowest range
     uint32_t upRangeThreshold = kRangeMaxVoltage * kRangeUpThreshold / kRangeThresholdDenominator;
 
-    if (currRange < (MeasureRangeCount - 1)) {  // if it's possible to shift down a range
-      uint32_t currRangeFactor = (uint64_t)measureRangeDivide_[currRange] * kRangeThresholdDenominator / measureRangeDivide_[currRange + 1];
+    if (currRange < (RangeCount - 1)) {  // if it's possible to shift down a range
+      uint32_t currRangeFactor = (uint64_t)rangeRatio_[currRange] * kRangeThresholdDenominator / rangeRatio_[currRange + 1];
       downRangeThreshold = kRangeMaxVoltage * kRangeDownThreshold * kRangeThresholdDenominator / kRangeThresholdDenominator / currRangeFactor;
     }
 
@@ -78,7 +72,7 @@ public:
         rangeUpTimer_.reset();
       }
       rangeDownTimer_.reset();
-    } else if (adcVolts < downRangeThreshold && currRange < (MeasureRangeCount - 1)) {
+    } else if (adcVolts < downRangeThreshold && currRange < (RangeCount - 1)) {
       if (rangeDownTimer_.elapsed_time().count() >= kRangeDownMs * 1000) {
         setRange(currRange + 1);
         rangeDownTimer_.reset();
@@ -94,8 +88,8 @@ public:
 
 protected:
   Mcp3561 adc_;
-  uint16_t measureRangeDivide_[MeasureRangeCount];
-  DigitalOut* measureRange_[MeasureRangeBits];
+  const uint16_t* rangeRatio_;
+  DigitalOut* const *rangeControl_;
 
   static const uint32_t kVref = 2400;  // By default +/-2% at 25C
   static const uint32_t kVrefDenominator = 1000;
