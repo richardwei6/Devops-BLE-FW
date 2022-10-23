@@ -360,10 +360,16 @@ int main() {
     }
 
     switch (Switch1Gesture.update()) {
+      case ButtonGesture::Gesture::kClickRelease:
+        AutoShutdownTimer.reset();
+        break;
       default: break;
     }
 
     switch (Switch2Gesture.update()) {
+      case ButtonGesture::Gesture::kClickRelease:
+        AutoShutdownTimer.reset();
+        break;
       default: break;
     }
 
