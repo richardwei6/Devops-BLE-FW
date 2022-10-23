@@ -5,5 +5,5 @@
 constexpr uint8_t MultimeterService::kUuidService[];
 constexpr uint8_t MultimeterService::kUuidReading[];
 constexpr uint8_t MultimeterService::kUuidMode[];
-constexpr uint8_t MultimeterService::kUuidAdc[];
+constexpr uint8_t MultimeterService::kUuidMeasureState[];
 constexpr uint8_t MultimeterService::kUuidResistance[];

@@ -372,7 +372,13 @@ int main() {
       bool bleUpdate = BleUpdateTicker.checkExpired();
       if (bleUpdate) {
         bleMultimeter.writeVoltage(voltage);
-        bleMultimeter.writeAdc(adcValue);
+        MeasureState measureState;
+        measureState.voltageMv = voltage;
+        measureState.adc = adcValue;
+        measureState.range = Meter.getRange();
+        measureState.driverEnabled = DriverEnable;
+        measureState.driverRange = Driver.getRange();
+        bleMultimeter.writeMeasureState(measureState);
       }
 
       switch (mode) {
