@@ -97,7 +97,7 @@ protected:
 
   // Ranging control, note up/down is defined in terms of measurement range not control bits (which is inverted)
   Timer rangeUpTimer_, rangeDownTimer_;
-  static const uint32_t kRangeMaxVoltage = 1650;  // max absolute ADC voltage, scaled by kVoltageDenominator
+  static const uint32_t kRangeMaxVoltage = kVref / 2;  // full scale in divided mode is half of Vref
   static const uint32_t kRangeThresholdDenominator = 1000;
   static const uint32_t kRangeUpThreshold = 950;  // theshold of current max voltage before we up a range
   static const uint32_t kRangeDownThreshold = 900;  // threshold of previous max voltage before we down a range

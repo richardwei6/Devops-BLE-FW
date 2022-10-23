@@ -159,6 +159,8 @@ FixedGridWidget widMain(mainContents, 160, 80);
 
 
 // BLE comms
+TimerTicker BleUpdateTicker(100 * 1000, UsTimer);  // rate limit reading updates to avoid flooding
+
 const static char DEVICE_NAME[] = "DuckyMultimeter";
 const size_t kEventQueueSize = 16;
 static events::EventQueue event_queue(kEventQueueSize * EVENTS_EVENT_SIZE);
@@ -358,11 +360,14 @@ int main() {
 
     int32_t voltage, adcValue;
     if (Meter.readVoltageMv(&voltage, &adcValue, &rangeDivide)) {
-      bleMultimeter.writeVoltage(voltage);
-      bleMultimeter.writeAdc(adcValue);
+      bool bleUpdate = BleUpdateTicker.checkExpired();
+      if (bleUpdate) {
+        bleMultimeter.writeVoltage(voltage);
+        bleMultimeter.writeAdc(adcValue);
+      }
 
       switch (mode) {
-        case kMultimeterMode::kVoltage:
+        case kMultimeterMode::kVoltage: {
           if (lastMode != mode) {
             Adc.init(Mcp3561::kOsr::k98304);  // high precision mode
             Meter.setRange(kMeasureRange1);  // starting range
@@ -380,7 +385,7 @@ int main() {
           if (rangeDivide > 1) {  // range beyond 1:1 indicates liveness (1:1 range floats and is unreliable)
             AutoShutdownTimer.reset();
           }
-          break;
+        } break;
         case kMultimeterMode::kResistance: {
           if (lastMode != mode) {
             Adc.init(Mcp3561::kOsr::k98304);  // high precision mode
@@ -398,14 +403,16 @@ int main() {
           widMeas.setValue(resistance);
           widDriver.setValue(driverRangeString[Driver.getRange()]);
 
-          bleMultimeter.writeResistance(resistance);
+          if (bleUpdate) {
+            bleMultimeter.writeResistance(resistance);
+          }
 
           if (Driver.getRange() < sizeof(driverRangeResistance) / sizeof(driverRangeResistance[0]) - 1) {  // range beyond max (open) indicates liveness
             AutoShutdownTimer.reset();
           }
           Driver.autoRangeResistance(voltage);
         } break;
-        case kMultimeterMode::kDiode:
+        case kMultimeterMode::kDiode: {
           if (lastMode != mode) {
             Adc.init(Mcp3561::kOsr::k98304);  // high precision mode
             InNegControl = 0;
@@ -422,7 +429,7 @@ int main() {
           if (voltage < 1800) { // arbitrary threshold for "something is there"
             AutoShutdownTimer.reset();
           }
-          break;
+        } break;
         case kMultimeterMode::kContinuity: {
           if (lastMode != mode) {
             Adc.init(Mcp3561::kOsr::k2048);  // fast mode
@@ -440,7 +447,9 @@ int main() {
           uint32_t resistance = (int64_t)voltage * 1000000 / Driver.getCurrentUa();
           widMeas.setValue(resistance);
 
-          bleMultimeter.writeResistance(resistance);
+          if (bleUpdate) {
+            bleMultimeter.writeResistance(resistance);
+          }
 
           if (voltage < 100) {
             if (!continuityTonePlaying) {

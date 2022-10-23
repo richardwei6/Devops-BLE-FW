@@ -19,8 +19,8 @@ public:
         {
     GattCharacteristic *charTable[] = {
       &voltageCharacteristic_, &modeCharacteristic_,
-       &adcCharacteristic_, &resistanceCharacteristic_, 
-       };
+      &adcCharacteristic_, &resistanceCharacteristic_, 
+      };
     GattService service(kUuidService, charTable, sizeof(charTable) / sizeof(charTable[0]));
     ble.gattServer().addService(service);
   }
