@@ -200,9 +200,10 @@ private:
             ble::adv_interval_t(ble::millisecond_t(1000))
         );
 
+        const UUID multimeterService = MultimeterService::kUuidService;
         const UUID deviceInformationService = GattService::UUID_DEVICE_INFORMATION_SERVICE;
         const UUID uartService = NusService::kServiceUuid;
-        const UUID services[] = {deviceInformationService, uartService};
+        const UUID services[] = {multimeterService, deviceInformationService, uartService};
 
         _adv_data_builder.setFlags();
         // _adv_data_builder.setLocalServiceList(mbed::make_Span(services, 2));  // somehow breaks names
@@ -282,10 +283,10 @@ int main() {
   ThermometerDemo demo(ble, event_queue);
   demo.start();
 
-  VoltmeterService bleVoltmeter(ble, 0x183B);
+  MultimeterService bleMultimeter(ble);
   DeviceInformationService bleDeviceInfo(ble, "Ducky", "Multimeter", "0001",
                                       "rv1", __DATE__ " " __TIME__, "NA");
-  NusService bleConsole(ble);  
+  NusService bleConsole(ble);
 
   UsTimer.start();
   AutoShutdownTimer.start();
@@ -336,6 +337,7 @@ int main() {
       switch (Switch0Gesture.update()) {
         case ButtonGesture::Gesture::kClickRelease:
           mode = (kMultimeterMode)((mode + 1) % 4);
+          bleMultimeter.writeMode(mode);
           AutoShutdownTimer.reset();
           Speaker.tone(kSpeakerBeepFrequency, kSpeakerBeepAmplitude, kSpeakerBeepDurationUs);
           break;
@@ -356,6 +358,9 @@ int main() {
 
     int32_t voltage, adcValue;
     if (Meter.readVoltageMv(&voltage, &adcValue, &rangeDivide)) {
+      bleMultimeter.writeVoltage(voltage);
+      bleMultimeter.writeAdc(adcValue);
+
       switch (mode) {
         case kMultimeterMode::kVoltage:
           if (lastMode != mode) {
@@ -376,7 +381,7 @@ int main() {
             AutoShutdownTimer.reset();
           }
           break;
-        case kMultimeterMode::kResistance:
+        case kMultimeterMode::kResistance: {
           if (lastMode != mode) {
             Adc.init(Mcp3561::kOsr::k98304);  // high precision mode
             Meter.setRange(kMeasureRange1);
@@ -388,15 +393,18 @@ int main() {
             widRange.setValue(1);
             widDriver.setValue(driverRangeString[Driver.getRange()]);
           }
+          uint32_t resistance = (int64_t)voltage * 1000000 / Driver.getCurrentUa();
           widMeas.setConfig(resistanceRangeConfig[Driver.getRange()]);
-          widMeas.setValue((int64_t)voltage * 1000000 / Driver.getCurrentUa());
+          widMeas.setValue(resistance);
           widDriver.setValue(driverRangeString[Driver.getRange()]);
+
+          bleMultimeter.writeResistance(resistance);
 
           if (Driver.getRange() < sizeof(driverRangeResistance) / sizeof(driverRangeResistance[0]) - 1) {  // range beyond max (open) indicates liveness
             AutoShutdownTimer.reset();
           }
           Driver.autoRangeResistance(voltage);
-          break;
+        } break;
         case kMultimeterMode::kDiode:
           if (lastMode != mode) {
             Adc.init(Mcp3561::kOsr::k98304);  // high precision mode
@@ -415,7 +423,7 @@ int main() {
             AutoShutdownTimer.reset();
           }
           break;
-        case kMultimeterMode::kContinuity:
+        case kMultimeterMode::kContinuity: {
           if (lastMode != mode) {
             Adc.init(Mcp3561::kOsr::k2048);  // fast mode
             Meter.setRange(kMeasureRange1);
@@ -429,7 +437,10 @@ int main() {
             widMeas.setConfig(resistanceRangeConfig[Driver.getRange()]);
             widDriver.setValue(driverRangeString[Driver.getRange()]);
           }
-          widMeas.setValue((int64_t)voltage * 1000000 / Driver.getCurrentUa());
+          uint32_t resistance = (int64_t)voltage * 1000000 / Driver.getCurrentUa();
+          widMeas.setValue(resistance);
+
+          bleMultimeter.writeResistance(resistance);
 
           if (voltage < 100) {
             if (!continuityTonePlaying) {
@@ -443,7 +454,7 @@ int main() {
               continuityTonePlaying = false;
             }
           }
-          break;
+        } break;
         default:
           widMode.setValue(" UNK ");
           InNegControl = 1;
@@ -466,8 +477,6 @@ int main() {
       auto voltageStats = VoltageStats.read();
       AdcStats.reset();
       VoltageStats.reset();
-
-      bleVoltmeter.writeVoltage(voltageStats.avg);
 
       // debugging stuff below
       printf("NC=%i, Div=%u, ADC(%u) = %li - %li - %li (%lu)    V(%u) = %li - %li - %li (%li)\n", 
