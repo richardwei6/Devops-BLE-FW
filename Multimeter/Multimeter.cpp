@@ -137,15 +137,17 @@ HGridWidget<2> widVersionGrid(widVersionContents);
 
 MeasurementWidget widMeas(kContrastActive, kContrastBackground, kContrastStale, 160, 48);
 
-TextWidget widMode("     ", 5, Font5x7, kContrastStale);
+TextWidget widMode("     ", 5, Font5x7, kContrastBackground);
 LabelFrameWidget widModeFrame(&widMode, "MODE", Font3x5, kContrastBackground);
-NumericTextWidget widRange(0, 5, Font5x7, kContrastStale);
+NumericTextWidget widRange(0, 5, Font5x7, kContrastBackground);
 LabelFrameWidget widRangeFrame(&widRange, "RANGE", Font3x5, kContrastBackground);
-TextWidget widDriver("     ", 5, Font5x7, kContrastStale);
+TextWidget widDriver("     ", 5, Font5x7, kContrastBackground);
 LabelFrameWidget widDriverFrame(&widDriver, "DRVR", Font3x5, kContrastBackground);
+TextWidget widBle("     ", 5, Font5x7, kContrastBackground);
+LabelFrameWidget widBleFrame(&widBle, "BLE", Font3x5, kContrastBackground);
 
-Widget* widConfigContents[] = {&widModeFrame, &widRangeFrame, &widDriverFrame};
-HGridWidget<3> widConfig(widConfigContents);
+Widget* widConfigContents[] = {&widModeFrame, &widRangeFrame, &widDriverFrame, &widBleFrame};
+HGridWidget<4> widConfig(widConfigContents);
 
 NumericTextWidget widShutdown(0, 3, Font5x7, kContrastBackground);
 LabelFrameWidget widShutdownFrame(&widShutdown, "SHDN", Font3x5, kContrastBackground);  // to match alignment with mode
@@ -244,8 +246,15 @@ private:
         }
     }
 
+    virtual void onConnectionComplete(const ble::ConnectionCompleteEvent&) {
+        widBle.setValue(" CON ");
+        widBle.setContrast(kContrastActive);
+    }
+
     virtual void onDisconnectionComplete(const ble::DisconnectionCompleteEvent&) {
-         _ble.gap().startAdvertising(ble::LEGACY_ADVERTISING_HANDLE);
+        widBle.setValue("     ");
+        widBle.setContrast(kContrastBackground);
+        _ble.gap().startAdvertising(ble::LEGACY_ADVERTISING_HANDLE);
     }
 
 private:
