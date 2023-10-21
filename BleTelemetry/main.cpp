@@ -211,8 +211,13 @@ int main()
         }*/
         if (!flag){
             flag = true;
-            std::string testStr = "This is a test string";
-            strcpy(buf, testStr.c_str());
+
+            id = 1;
+            len_out = 1;
+            data_out[0] = 'c';
+
+            //std::string testStr = "This is a test string";
+            //strcpy(buf, testStr.c_str());
         }
 
         if (flag)
