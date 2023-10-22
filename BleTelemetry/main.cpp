@@ -191,6 +191,8 @@ int main()
     demo.start();
     NusService bleConsole(ble);
 
+    int flip = 0;
+
     while (1)
     {
         event_queue.dispatch_once();
@@ -214,7 +216,9 @@ int main()
 
             id = 1;
             len_out = 1;
-            data_out[0] = 'c';
+            data_out[0] = (char)('T' + flip);
+
+            flip = 1 - flip;
 
             //std::string testStr = "This is a test string";
             //strcpy(buf, testStr.c_str());
