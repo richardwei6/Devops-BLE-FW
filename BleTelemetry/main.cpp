@@ -18,10 +18,11 @@
 #include "mbed.h"
 //#include "ble/BLE.h"
 //#include "ble/services/HealthThermometerService.h"
-//#include "pretty_printer.h"
+#include "pretty_printer.h"
 #include <MCP2515.h>
 #include "slcan.h"
 #include "RgbActivityLed.h"
+#include "NusService.h" //deduplicate service later
 
 #include "Bluetooth/BLE.h"
 
@@ -35,14 +36,19 @@ Timer UsTimer;
 DigitalOut LedR(P0_30), LedG(P0_5), LedB(P0_4);
 RgbActivityDigitalOut StatusLed(UsTimer, LedR, LedG, LedB, false);
 
+static events::EventQueue event_queue(/* event count */ 16 * EVENTS_EVENT_SIZE);
+
+/** Schedule processing of events from the BLE middleware in the event queue. */
+void schedule_ble_events(BLE::OnEventsToProcessCallbackContext *context){
+    event_queue.call(Callback<void()>(&context->ble, &BLE::processEvents));
+}
+
 // cs 10, so 9, si 6,sck 5
-FileHandle *mbed::mbed_override_console(int)
-{ // redirect printf to SWD UART pins
+FileHandle *mbed::mbed_override_console(int){ // redirect printf to SWD UART pins
     return &Uart;
 }
 
-int main()
-{
+int main(){
     UsTimer.start();
 
     wait_us(10 * 1000);
@@ -56,14 +62,15 @@ int main()
 
     BLE &ble = BLE::Instance();
     ble.onEventsToProcess(schedule_ble_events);
-    ThermometerDemo demo(ble, event_queue);
-    demo.start();
+
+    BLEManager blemgr(ble, event_queue);
+    blemgr.start();
+    
     NusService bleConsole(ble);
 
     int flip = 0;
 
-    while (1)
-    {
+    while (1){
         event_queue.dispatch_once();
         uint8_t status = Can.readRXStatus();
         uint8_t len_out;
@@ -93,8 +100,7 @@ int main()
             //strcpy(buf, testStr.c_str());
         }
 
-        if (flag)
-        {
+        if (flag){
             CANMessage msg(id, data_out, len_out);
             size_t len = SLCANBase::formatCANMessage(msg, buf, sizeof(buf));
             buf[len] = '\0';
@@ -103,8 +109,7 @@ int main()
             StatusLed.pulse(RgbActivity::kGreen);
         }
         
-        if (timer.read_ms() >= 1000)
-        {
+        if (timer.read_ms() >= 1000){
             timer.reset();
             Can.load_ff_0(0, 0x60, NULL);
             Can.send_0();
