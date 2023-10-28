@@ -2,6 +2,7 @@
 #include "../ble/BLE.h"
 #include "../ble/services/HealthThermometerService.h"
 #include "../pretty_printer.h"
+#include "NusService.h" //deduplicate service later
 
 const static char DEVICE_NAME[] = "BLETelemetry1";
 

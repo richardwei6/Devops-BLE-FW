@@ -16,12 +16,11 @@
 // schematic for nrf https://cdn-learn.adafruit.com/assets/assets/000/068/545/original/circuitpython_nRF52840_Schematic_REV-D.png
 #include <events/mbed_events.h>
 #include "mbed.h"
-#include "ble/BLE.h"
-#include "ble/services/HealthThermometerService.h"
+//#include "ble/BLE.h"
+//#include "ble/services/HealthThermometerService.h"
 //#include "pretty_printer.h"
 #include <MCP2515.h>
 #include "slcan.h"
-#include "NusService.h" //deduplicate service later
 #include "RgbActivityLed.h"
 
 #include "Bluetooth/BLE.h"
