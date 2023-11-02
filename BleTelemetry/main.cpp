@@ -25,6 +25,7 @@
 #include "NusService.h" //deduplicate service later
 
 #include "Bluetooth/BLE.h"
+#include "msgpack/msgpack.hpp"
 
 SPI McpSpi(P0_26, P0_27, P0_7); // SI, SO, SCK
 // DigitalOut McpCs(P0_27);
