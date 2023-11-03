@@ -25,7 +25,13 @@
 #include "NusService.h" //deduplicate service later
 
 #include "Bluetooth/BLE.h"
-#include "msgpack/msgpack.hpp"
+//#include <ArxTypeTraits.h>
+#include "../lib/MsgPack/MsgPack.h"
+
+#include <map>
+#include <vector>
+#include <cstdint>
+#include <iostream>
 
 SPI McpSpi(P0_26, P0_27, P0_7); // SI, SO, SCK
 // DigitalOut McpCs(P0_27);
@@ -49,6 +55,12 @@ FileHandle *mbed::mbed_override_console(int){ // redirect printf to SWD UART pin
     return &Uart;
 }
 
+struct bleData{
+    std::string name;
+    uint16_t t;
+    bool flag;
+};
+
 int main(){
     UsTimer.start();
 
@@ -71,6 +83,8 @@ int main(){
 
     int flip = 0;
 
+    bleData testData{"testData", 0, false};
+
     while (1){
         event_queue.dispatch_once();
         uint8_t status = Can.readRXStatus();
@@ -91,9 +105,8 @@ int main(){
         if (!flag){
             flag = true;
 
-            id = 1;
-            len_out = 1;
-            data_out[0] = (char)('T' + flip);
+            testData.t = flip;
+            testData.flag = flip;
 
             flip = 1 - flip;
 
@@ -102,11 +115,25 @@ int main(){
         }
 
         if (flag){
-            CANMessage msg(id, data_out, len_out);
+            /*CANMessage msg(id, data_out, len_out);
             size_t len = SLCANBase::formatCANMessage(msg, buf, sizeof(buf));
             buf[len] = '\0';
-            bleConsole.write(buf);
+            bleConsole.write(buf);*/
 
+            //std::vector<uint8_t> packedData = msgpack::pack(testData);
+
+            MsgPack::Packer packer;
+            packer.serialize(testData.name, testData.t);
+
+            bleConsole.write((char*)packer.data());
+
+            /*char* rawData = (char*)(packer.data());
+
+            rawData[packer.size()] = '\0';
+            
+            bleConsole.write(rawData);
+            
+            delete [] rawData; // clean up rawData*/
             StatusLed.pulse(RgbActivity::kGreen);
         }
         
