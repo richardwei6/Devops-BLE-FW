@@ -1,6 +1,8 @@
 #include "../ble/BLE.h"
 //#include "../ble/services/HealthThermometerService.h"
 #include <events/mbed_events.h>
+#include "../../lib/MsgPack/MsgPack.h"
+
 
 const static char DEVICE_NAME[] = "BLETelemetry1";
 
@@ -16,6 +18,13 @@ public:
                                                                  _adv_data_builder(_adv_buffer) {}
 
     void start();
+
+    struct bleData{
+        uint16_t id;
+        uint8_t data_out[8];
+        uint8_t len_out;
+        MSGPACK_DEFINE(name, t, testFloating);
+    };
 
 private:
     /** Callback triggered when the ble initialization process has finished */

@@ -55,12 +55,6 @@ FileHandle *mbed::mbed_override_console(int){ // redirect printf to SWD UART pin
     return &Uart;
 }
 
-struct bleData{
-    std::string name;
-    uint16_t t;
-    bool flag;
-};
-
 int main(){
     UsTimer.start();
 
@@ -81,59 +75,50 @@ int main(){
     
     NusService bleConsole(ble);
 
-    int flip = 0;
+    //int currentVal = 0;
 
-    bleData testData{"testData", 0, false};
+    //bleData testData{"testData", 0};
 
     while (1){
         event_queue.dispatch_once();
         uint8_t status = Can.readRXStatus();
-        uint8_t len_out;
-        uint8_t data_out[8];
-        uint16_t id;
-        char buf[32];
+        //char buf[32];
         bool flag = false;
+        BLEManager::bleData buf;
 
-        /*if((status & 0x80) != 0){
+        if((status & 0x80) != 0){
             flag = true;
-            Can.readDATA_ff_1(&len_out, data_out, &id);
+            Can.readDATA_ff_1(&buf.len_out, buf.data_out, &buf.id);
         }
         else if((status & 0x40) != 0){
-            flag= true;
-            Can.readDATA_ff_0(&len_out, data_out, &id);
-        }*/
-        if (!flag){
+            flag = true;
+            Can.readDATA_ff_0(&buf.len_out, buf.data_out, &buf.id);
+        }
+        /*if (!flag){
             flag = true;
 
-            testData.t = flip;
-            testData.flag = flip;
+            testData.t = currentVal;
 
-            flip = 1 - flip;
-
+            if (currentVal > 100){
+                currentVal = 0;
+            }
+            else{
+                currentVal += 1;
+            }
             //std::string testStr = "This is a test string";
             //strcpy(buf, testStr.c_str());
-        }
+        }*/
 
         if (flag){
             /*CANMessage msg(id, data_out, len_out);
             size_t len = SLCANBase::formatCANMessage(msg, buf, sizeof(buf));
             buf[len] = '\0';
-            bleConsole.write(buf);*/
-
-            //std::vector<uint8_t> packedData = msgpack::pack(testData);
+            //bleConsole.write(buf);*/
 
             MsgPack::Packer packer;
-            packer.serialize(testData.name, testData.t);
-
+            packer.serialize(buf);
             bleConsole.write((char*)packer.data());
 
-            /*char* rawData = (char*)(packer.data());
-
-            rawData[packer.size()] = '\0';
-            
-            bleConsole.write(rawData);
-            
-            delete [] rawData; // clean up rawData*/
             StatusLed.pulse(RgbActivity::kGreen);
         }
         
