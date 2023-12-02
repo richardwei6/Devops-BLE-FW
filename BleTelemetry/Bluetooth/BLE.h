@@ -21,9 +21,9 @@ public:
 
     struct bleData{
         uint16_t id;
-        uint8_t data_out[8];
+        MsgPack::arr_t<uint8_t> data;
         uint8_t len_out;
-        MSGPACK_DEFINE(name, t, testFloating);
+        MSGPACK_DEFINE(id, data, len_out);
     };
 
 private:

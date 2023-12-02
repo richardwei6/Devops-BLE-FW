@@ -83,16 +83,20 @@ int main(){
         event_queue.dispatch_once();
         uint8_t status = Can.readRXStatus();
         //char buf[32];
+        const int data_out_size = 8;
+        uint8_t data_out[data_out_size];
         bool flag = false;
         BLEManager::bleData buf;
 
         if((status & 0x80) != 0){
             flag = true;
-            Can.readDATA_ff_1(&buf.len_out, buf.data_out, &buf.id);
+            Can.readDATA_ff_1(&buf.len_out, data_out, &buf.id);
+            buf.data = MsgPack::arr_t<uint8_t>(data_out, data_out + data_out_size);
         }
         else if((status & 0x40) != 0){
             flag = true;
-            Can.readDATA_ff_0(&buf.len_out, buf.data_out, &buf.id);
+            Can.readDATA_ff_0(&buf.len_out, data_out, &buf.id);
+            buf.data = MsgPack::arr_t<uint8_t>(data_out, data_out + data_out_size);
         }
         /*if (!flag){
             flag = true;
