@@ -20,10 +20,18 @@ public:
     void start();
 
     struct bleData{
-        uint16_t id;
-        MsgPack::arr_t<uint8_t> data;
-        uint8_t len_out;
-        MSGPACK_DEFINE(id, data, len_out);
+        /*
+            for whatever reason, msgpack completely disregards bytes if it encounters a zero in the data
+            thus, all default values are 1 and all data values are +1
+            on receiving side, all data values must -1
+        */
+        uint16_t state = 1; // 1 is invalid data, 2 is valid data
+        //uint8_t canStatus = 1;
+        uint16_t id = 1;
+        MsgPack::arr_t<uint8_t> data{1};
+        uint8_t len_out = 1;
+        MSGPACK_DEFINE(state, id, data, len_out);
+        //MSGPACK_DEFINE(state, canStatus, id);
     };
 
 private:

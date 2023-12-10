@@ -61,7 +61,7 @@ int main(){
     wait_us(10 * 1000);
     Can.setMode(CONFIGURATION);
     wait_us(10 * 1000);
-    Can.baudConfig(1000);
+    Can.baudConfig(500000);
     wait_us(10 * 1000);
     Can.setMode(NORMAL);
     Timer timer;
@@ -75,7 +75,7 @@ int main(){
     
     NusService bleConsole(ble);
 
-    //int currentVal = 0;
+    int currentVal = 0;
 
     //bleData testData{"testData", 0};
 
@@ -88,43 +88,38 @@ int main(){
         bool flag = false;
         BLEManager::bleData buf;
 
-        if((status & 0x80) != 0){
-            flag = true;
-            Can.readDATA_ff_1(&buf.len_out, data_out, &buf.id);
-            buf.data = MsgPack::arr_t<uint8_t>(data_out, data_out + data_out_size);
-        }
-        else if((status & 0x40) != 0){
-            flag = true;
-            Can.readDATA_ff_0(&buf.len_out, data_out, &buf.id);
-            buf.data = MsgPack::arr_t<uint8_t>(data_out, data_out + data_out_size);
-        }
-        /*if (!flag){
+        if ((status & 0x80) != 0 || (status & 0x40) != 0){
             flag = true;
 
-            testData.t = currentVal;
-
-            if (currentVal > 100){
-                currentVal = 0;
+            if((status & 0x80) != 0){
+                Can.readDATA_ff_1(&buf.len_out, data_out, &buf.id);
             }
-            else{
-                currentVal += 1;
+            else{ // status & 0x40
+                Can.readDATA_ff_0(&buf.len_out, data_out, &buf.id);
             }
-            //std::string testStr = "This is a test string";
-            //strcpy(buf, testStr.c_str());
-        }*/
 
-        if (flag){
-            /*CANMessage msg(id, data_out, len_out);
-            size_t len = SLCANBase::formatCANMessage(msg, buf, sizeof(buf));
-            buf[len] = '\0';
-            //bleConsole.write(buf);*/
+            // data
+            buf.data = MsgPack::arr_t<uint8_t>(data_out, data_out + data_out_size);
+            for (int i = 0; i < buf.data.size(); i++)
+                buf.data[i] += 1;
 
-            MsgPack::Packer packer;
-            packer.serialize(buf);
-            bleConsole.write((char*)packer.data());
-
-            StatusLed.pulse(RgbActivity::kGreen);
+            buf.state = 2; // state
+            buf.id += 1; // can msg id
+            buf.len_out += 1;
         }
+
+        //
+
+        MsgPack::Packer packer;
+        //packer.serialize(3, 0, 1);
+        packer.serialize(buf);
+
+        char* rawPackedData = (char*)packer.data();
+
+        bleConsole.write(rawPackedData);
+
+        StatusLed.pulse(RgbActivity::kGreen);
+        //}
         
         if (timer.read_ms() >= 1000){
             timer.reset();
@@ -133,6 +128,8 @@ int main(){
 
             StatusLed.pulse(RgbActivity::kYellow);
         }
+
+        currentVal += rawPackedData[0];
 
         StatusLed.update();
     }
